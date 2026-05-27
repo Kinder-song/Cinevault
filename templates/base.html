@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CineVault{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    {% block nav %}
+    <nav class="fixed top-0 left-0 right-0 h-16 glass-nav flex items-center justify-between px-6 z-50">
+        <a href="/" class="brand-logo">CineVault</a>
+        {% if session.user_id %}
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-white/60">{{ session.username }}</span>
+            <a href="/logout" class="logout-btn">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+            </a>
+        </div>
+        {% endif %}
+    </nav>
+    {% endblock %}
+
+    <main class="pt-16 min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        lucide.createIcons();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
