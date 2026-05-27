@@ -3,6 +3,7 @@ __pycache__/
 .env
 sessions/
 thumbnails/
+cache/
 ffmpeg
 video/
 *.mp4
