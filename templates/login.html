@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Login - CineVault{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div class="login-page min-h-screen flex items-center justify-center relative overflow-hidden">
+    <div class="glow-orb glow-1"></div>
+    <div class="glow-orb glow-2"></div>
+    <div class="glow-orb glow-3"></div>
+
+    <div class="login-container relative z-10">
+        <h1 class="login-title">CineVault</h1>
+        <p class="login-subtitle">Your Personal Video Archive</p>
+
+        <form id="login-form" class="login-form">
+            <div class="input-group">
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder=" ">
+                <label for="username">Username</label>
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder=" ">
+                <label for="password">Password</label>
+            </div>
+            <div id="login-error" class="error-message hidden"></div>
+            <button type="submit" class="login-btn">
+                <span>Sign In</span>
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const errorEl = document.getElementById('login-error');
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorEl.classList.add('hidden');
+
+    const formData = new FormData(form);
+
+    try {
+        const res = await fetch('/login', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.location.href = '/';
+        } else {
+            errorEl.textContent = data.error || 'Login failed';
+            errorEl.classList.remove('hidden');
+            form.classList.add('shake');
+            setTimeout(() => form.classList.remove('shake'), 500);
+        }
+    } catch (err) {
+        errorEl.textContent = 'Connection error';
+        errorEl.classList.remove('hidden');
+    }
+
+    btn.classList.remove('loading');
+    btn.disabled = false;
+});
+</script>
+{% endblock %}

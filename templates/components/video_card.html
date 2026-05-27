@@ -1,0 +1,49 @@
+{% macro video_card(video, tags, index) %}
+<div class="video-card" data-filename="{{ video.filename }}" data-index="{{ index }}">
+    <div class="card-media" onclick="window.location.href='/video/{{ video.filename|urlencode }}'">
+        <div class="thumbnail-container">
+            {% if video.thumbnail %}
+            <img src="/thumbnail/{{ video.filename|urlencode }}" alt="{{ video.title }}" class="thumbnail-img">
+            {% else %}
+            <div class="thumbnail-placeholder">
+                <div class="placeholder-gradient"></div>
+                <i data-lucide="play" class="play-icon"></i>
+            </div>
+            {% endif %}
+            <video class="preview-video" muted preload="none" loop>
+                <source src="/stream/{{ video.filename|urlencode }}" type="video/mp4">
+            </video>
+        </div>
+        <div class="card-overlay">
+            <div class="flow-light"></div>
+        </div>
+        {% if video.duration_formatted %}
+        <span class="duration-badge">{{ video.duration_formatted }}</span>
+        {% endif %}
+    </div>
+
+    <div class="card-info">
+        <h3 class="card-title" onclick="window.location.href='/video/{{ video.filename|urlencode }}'">{{ video.title }}</h3>
+        <p class="card-meta">{{ video.size_formatted }}</p>
+
+        <div class="card-tags" onclick="toggleTagEditor(event, this)">
+            {% for tag in tags %}
+            <span class="tag-pill" style="background: {{ tag.color }}20; color: {{ tag.color }}; border-color: {{ tag.color }}40;">
+                {{ tag.name }}
+                <button class="tag-delete" onclick="deleteTag(event, '{{ video.filename|urlencode }}', '{{ tag.name }}')">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
+            </span>
+            {% endfor %}
+            <button class="tag-add-btn" onclick="toggleTagEditor(event, this)">
+                <i data-lucide="plus" class="w-3 h-3"></i>
+            </button>
+        </div>
+
+        <div class="tag-editor hidden">
+            <input type="text" class="tag-input" placeholder="Press Enter to add tag..."
+                   onkeydown="handleTagInput(event, '{{ video.filename|urlencode }}')">
+        </div>
+    </div>
+</div>
+{% endmacro %}

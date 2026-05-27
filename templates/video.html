@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ video.title }} - CineVault{% endblock %}
+
+{% block content %}
+<div class="player-page">
+    <div class="player-container">
+        <div class="video-wrapper">
+            <video id="video-player" class="video-element" playsinline data-filename="{{ video.filename }}">
+                <source src="/stream/{{ video.filename|urlencode }}" type="video/mp4">
+            </video>
+
+            <div class="custom-controls">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-buffered"></div>
+                        <div class="progress-played" id="progress-played"></div>
+                    </div>
+                </div>
+
+                <div class="controls-row">
+                    <div class="controls-left">
+                        <button class="control-btn" id="play-btn" title="Play/Pause (Space)">
+                            <i data-lucide="play" class="w-5 h-5 play-icon"></i>
+                            <i data-lucide="pause" class="w-5 h-5 pause-icon hidden"></i>
+                        </button>
+
+                        <div class="volume-control">
+                            <button class="control-btn" id="mute-btn">
+                                <i data-lucide="volume-2" class="w-5 h-5"></i>
+                            </button>
+                            <input type="range" class="volume-slider" min="0" max="100" value="100">
+                        </div>
+
+                        <span class="time-display">
+                            <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                        </span>
+                    </div>
+
+                    <div class="controls-right">
+                        <select class="speed-select" id="speed-select">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x</option>
+                        </select>
+
+                        <button class="control-btn" id="fullscreen-btn" title="Fullscreen">
+                            <i data-lucide="maximize" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="video-info">
+            <h1 class="video-title">{{ video.title }}</h1>
+            <p class="video-meta">{{ video.size_formatted }}</p>
+
+            <h3 class="section-label">Tags</h3>
+            <div class="tags-container" id="tags-container">
+                {% for tag in tags %}
+                <span class="tag-pill" style="background: {{ tag.color }}20; color: {{ tag.color }}; border-color: {{ tag.color }}40;">
+                    {{ tag.name }}
+                    <button class="tag-delete" onclick="deletePlayerTag(event, '{{ tag.name }}')">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </span>
+                {% endfor %}
+            </div>
+
+            <div class="tag-manager">
+                <input type="text" id="new-tag-input" placeholder="Add new tag..."
+                       onkeydown="handlePlayerTagInput(event)">
+                <button class="add-tag-btn" onclick="addTagToVideo()">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Add
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/main.js"></script>
+<script>
+    window.currentTags = {{ tags | tojson }};
+    initVideoPlayer();
+</script>
+{% endblock %}

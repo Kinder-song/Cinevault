@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+sessions/
+thumbnails/
+ffmpeg
+video/
+*.mp4
+*.mkv
+*.webm
+*.mov
+.DS_Store
