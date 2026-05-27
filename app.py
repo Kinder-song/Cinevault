@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # Ensure directories exist
+os.makedirs('thumbnails', exist_ok=True)
 os.makedirs('sessions', exist_ok=True)
 os.makedirs('static/css', exist_ok=True)
 os.makedirs('static/js', exist_ok=True)
@@ -54,16 +55,9 @@ def init_database():
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(100) UNIQUE NOT NULL,
-            password_hash VARCHAR(255) NOT NULL,
-            video_path VARCHAR(500) DEFAULT './video'
+            password_hash VARCHAR(255) NOT NULL
         )
     """)
-
-    # Add video_path column if not exists (migration for existing databases)
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN video_path VARCHAR(500) DEFAULT './video' AFTER password_hash")
-    except:
-        pass  # Column might already exist
 
     # Create videos table
     cursor.execute("""
@@ -123,20 +117,20 @@ def login_required(f):
 # ==================== Video Utils ====================
 
 def get_video_duration(filepath):
-    """Get video duration in seconds by parsing ffmpeg stderr output"""
-    cmd = [Config.FFMPEG_PATH, '-i', filepath]
+    """Get video duration in seconds using ffprobe via ffmpeg"""
+    cmd = [
+        Config.FFMPEG_PATH, '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        filepath
+    ]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        for line in result.stderr.split('\n'):
-            if 'Duration:' in line:
-                # Parse "Duration: HH:MM:SS.ms"
-                duration_str = line.split('Duration:')[1].split(',')[0].strip()
-                parts = duration_str.split(':')
-                if len(parts) == 3:
-                    h, m, s = parts
-                    return int(float(h) * 3600 + float(m) * 60 + float(s))
-    except Exception as e:
-        print(f"Duration error: {e}")
+        duration_str = result.stdout.strip()
+        if duration_str:
+            return int(float(duration_str))
+    except:
+        pass
     return None
 
 def format_duration(seconds):
@@ -150,62 +144,6 @@ def format_duration(seconds):
         return f"{h}:{m:02d}:{s:02d}"
     return f"{m}:{s:02d}"
 
-def get_video_info(filepath):
-    """Get video metadata by parsing ffmpeg stderr output"""
-    cmd = [Config.FFMPEG_PATH, '-i', filepath]
-    info = {}
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        for line in result.stderr.split('\n'):
-            if 'Stream #0' in line and 'Video:' in line:
-                # Parse "Stream #0:0(...): Video: h264 ... 3840x2160 [...], ... 60 fps"
-                # Extract resolution - look for WxH before [SAR
-                import re
-                res_match = re.search(r'(\d{2,4})x(\d{2,4})\s+\[SAR', line)
-                if res_match:
-                    info['width'] = res_match.group(1)
-                    info['height'] = res_match.group(2)
-                else:
-                    # Fallback: try simple WxH pattern
-                    res_match = re.search(r'(\d{3,4})x(\d{3,4})', line)
-                    if res_match:
-                        info['width'] = res_match.group(1)
-                        info['height'] = res_match.group(2)
-                # Extract fps
-                fps_match = re.search(r'(\d+)\s*fps', line)
-                if fps_match:
-                    info['r_frame_rate'] = fps_match.group(1)
-                # Extract bitrate from main line
-                bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', result.stderr)
-                if bitrate_match:
-                    info['bit_rate'] = str(int(bitrate_match.group(1)) * 1000)
-        return info
-    except Exception as e:
-        print(f"Video info error: {e}")
-        return {}
-
-def format_bitrate(bitrate):
-    """Format bitrate to human readable"""
-    if not bitrate:
-        return None
-    try:
-        bps = int(bitrate)
-        return f"{bps / 1000:.0f} kbps"
-    except:
-        return None
-
-def format_fps(fps_str):
-    """Format frame rate to decimal"""
-    if not fps_str:
-        return None
-    try:
-        if '/' in fps_str:
-            num, den = fps_str.split('/')
-            return f"{float(num) / float(den):.2f}"
-        return fps_str
-    except:
-        return None
-
 def format_filesize(size):
     """Format bytes to human readable string"""
     for unit in ['B', 'KB', 'MB', 'GB']:
@@ -214,92 +152,16 @@ def format_filesize(size):
         size /= 1024
     return f"{size:.1f}TB"
 
-def get_cache_dir(video_path):
-    """Get cache directory for video metadata and thumbnails based on video_path hash"""
-    # Create a safe directory name from video_path
-    import hashlib
-    path_hash = hashlib.md5(video_path.encode()).hexdigest()[:12]
-    cache_dir = os.path.join('cache', path_hash)
-    os.makedirs(cache_dir, exist_ok=True)
-    os.makedirs(os.path.join(cache_dir, 'thumbnails'), exist_ok=True)
-    return cache_dir
-
-def get_video_metadata_cached(filepath, video_path):
-    """Get video metadata, using cache if available"""
-    cache_dir = get_cache_dir(video_path)
-    meta_file = os.path.join(cache_dir, 'metadata.json')
-
-    # Return cached if exists
-    if os.path.exists(meta_file):
-        try:
-            with open(meta_file, 'r') as f:
-                return json.load(f)
-        except:
-            pass
-
-    # Extract metadata via ffmpeg (combined duration + info in one call)
-    metadata = {}
-    cmd = [Config.FFMPEG_PATH, '-i', filepath]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        stderr = result.stderr
-
-        # Parse duration
-        for line in stderr.split('\n'):
-            if 'Duration:' in line:
-                duration_str = line.split('Duration:')[1].split(',')[0].strip()
-                parts = duration_str.split(':')
-                if len(parts) == 3:
-                    h, m, s = parts
-                    metadata['duration'] = int(float(h) * 3600 + float(m) * 60 + float(s))
-
-        # Parse video stream info
-        for line in stderr.split('\n'):
-            if 'Stream #0' in line and 'Video:' in line:
-                import re
-                # Resolution
-                res_match = re.search(r'(\d{2,4})x(\d{2,4})\s+\[SAR', line)
-                if res_match:
-                    metadata['width'] = res_match.group(1)
-                    metadata['height'] = res_match.group(2)
-                else:
-                    res_match = re.search(r'(\d{3,4})x(\d{3,4})', line)
-                    if res_match:
-                        metadata['width'] = res_match.group(1)
-                        metadata['height'] = res_match.group(2)
-                # FPS
-                fps_match = re.search(r'(\d+)\s*fps', line)
-                if fps_match:
-                    metadata['fps'] = fps_match.group(1)
-
-        # Bitrate
-        bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', stderr)
-        if bitrate_match:
-            metadata['bitrate'] = str(int(bitrate_match.group(1)) * 1000)
-
-        # Cache the result
-        with open(meta_file, 'w') as f:
-            json.dump(metadata, f)
-
-    except Exception as e:
-        print(f"Metadata extraction error: {e}")
-
-    return metadata
-
-def generate_thumbnail(filename, video_path=None):
+def generate_thumbnail(filename):
     """Generate thumbnail for video, returns thumbnail path or None"""
-    if video_path is None:
-        video_path = session.get('video_path', Config.VIDEO_PATH)
-    video_path_full = os.path.join(video_path, filename)
-    cache_dir = get_cache_dir(video_path)
-    thumb_dir = os.path.join(cache_dir, 'thumbnails')
+    video_path = os.path.join(Config.VIDEO_PATH, filename)
     thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
-    thumb_path = os.path.join(thumb_dir, thumb_name)
+    thumb_path = os.path.join('thumbnails', thumb_name)
 
     if os.path.exists(thumb_path):
         return thumb_path
 
-    duration = get_video_duration(video_path_full)
+    duration = get_video_duration(video_path)
     if not duration:
         return None
 
@@ -310,7 +172,7 @@ def generate_thumbnail(filename, video_path=None):
     cmd = [
         Config.FFMPEG_PATH, '-y',
         '-ss', str(random_time),
-        '-i', video_path_full,
+        '-i', video_path,
         '-vframes', '1',
         '-q:v', '2',
         thumb_path
@@ -319,55 +181,27 @@ def generate_thumbnail(filename, video_path=None):
         subprocess.run(cmd, capture_output=True, timeout=30)
         if os.path.exists(thumb_path):
             return thumb_path
-    except Exception as e:
-        print(f"Thumbnail error: {e}")
+    except:
+        pass
     return None
 
-def get_user_video_path(username):
-    """Get user's custom video path"""
-    conn = get_db_connection()
-    if not conn:
-        return Config.VIDEO_PATH
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT video_path FROM users WHERE username = %s", (username,))
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    if user and user['video_path']:
-        return user['video_path']
-    return Config.VIDEO_PATH
-
-def scan_videos(video_path=None):
+def scan_videos():
     """Scan video directory and return list of video info"""
-    if video_path is None:
-        video_path = session.get('video_path', Config.VIDEO_PATH)
-    if not os.path.exists(video_path):
-        return []
     videos = []
-    for fname in os.listdir(video_path):
+    for fname in os.listdir(Config.VIDEO_PATH):
         ext = os.path.splitext(fname)[1].lower()
         if ext not in VIDEO_EXTENSIONS:
             continue
-        fpath = os.path.join(video_path, fname)
-        stat = os.stat(fpath)
-        size = stat.st_size
-        mtime = stat.st_mtime
-
-        # Use cached metadata
-        meta = get_video_metadata_cached(fpath, video_path)
-
+        fpath = os.path.join(Config.VIDEO_PATH, fname)
+        size = os.stat(fpath).st_size
+        duration = get_video_duration(fpath)
         videos.append({
             'filename': fname,
             'title': os.path.splitext(fname)[0],
             'size': size,
             'size_formatted': format_filesize(size),
-            'duration': meta.get('duration'),
-            'duration_formatted': format_duration(meta.get('duration')),
-            'created': mtime,
-            'width': meta.get('width', ''),
-            'height': meta.get('height', ''),
-            'bitrate': format_bitrate(meta.get('bitrate', '')),
-            'fps': format_fps(meta.get('fps', ''))
+            'duration': duration,
+            'duration_formatted': format_duration(duration)
         })
     return videos
 
@@ -394,7 +228,6 @@ def login():
     if user and bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         session['user_id'] = username
         session['username'] = username
-        session['video_path'] = user.get('video_path', Config.VIDEO_PATH)
         return jsonify({'success': True})
 
     return jsonify({'error': 'Invalid credentials'}), 401
@@ -429,31 +262,28 @@ def index():
             tags_by_video[fname] = []
         tags_by_video[fname].append({'name': tag['name'], 'color': tag['color']})
 
-    # Thumbnails are generated on-demand via /thumbnail/ route
+    # Ensure thumbnails exist
+    for v in videos:
+        v['thumbnail'] = generate_thumbnail(v['filename'])
+
     return render_template('index.html', videos=videos, tags_by_video=tags_by_video)
 
-@app.route('/video/')
+@app.route('/video/<filename>')
 @login_required
 def video_page(filename):
-    video_path = session.get('video_path', Config.VIDEO_PATH)
-    video_path_full = os.path.join(video_path, filename)
-    if not os.path.exists(video_path_full):
+    video_path = os.path.join(Config.VIDEO_PATH, filename)
+    if not os.path.exists(video_path):
         return "Video not found", 404
 
-    size = os.stat(video_path_full).st_size
-    meta = get_video_metadata_cached(video_path_full, video_path)
+    size = os.stat(video_path).st_size
 
     video = {
         'filename': filename,
         'title': os.path.splitext(filename)[0],
         'size': size,
         'size_formatted': format_filesize(size),
-        'duration': meta.get('duration'),
-        'duration_formatted': format_duration(meta.get('duration')),
-        'width': meta.get('width', ''),
-        'height': meta.get('height', ''),
-        'bitrate': format_bitrate(meta.get('bitrate', '')),
-        'fps': format_fps(meta.get('fps', ''))
+        'duration': None,
+        'duration_formatted': None
     }
 
     # Get tags
@@ -475,12 +305,11 @@ def video_page(filename):
 @login_required
 def stream_video(filename):
     """Stream video with Range request support"""
-    video_path = session.get('video_path', Config.VIDEO_PATH)
-    video_path_full = os.path.join(video_path, filename)
-    if not os.path.exists(video_path_full):
+    video_path = os.path.join(Config.VIDEO_PATH, filename)
+    if not os.path.exists(video_path):
         return "Video not found", 404
 
-    file_size = os.stat(video_path_full).st_size
+    file_size = os.stat(video_path).st_size
 
     range_header = request.headers.get('Range')
     if range_header:
@@ -490,7 +319,7 @@ def stream_video(filename):
         length = end - start + 1
 
         def generate():
-            with open(video_path_full, 'rb') as f:
+            with open(video_path, 'rb') as f:
                 f.seek(start)
                 remaining = length
                 chunk_size = 1024 * 1024  # 1MB chunks
@@ -510,7 +339,7 @@ def stream_video(filename):
 
     # No Range header - stream entire file
     def generate():
-        with open(video_path_full, 'rb') as f:
+        with open(video_path, 'rb') as f:
             while chunk := f.read(1024 * 1024):
                 yield chunk
 
@@ -520,18 +349,15 @@ def stream_video(filename):
     resp.headers['Content-Type'] = 'video/mp4'
     return resp
 
-@app.route('/thumbnail/')
+@app.route('/thumbnail/<filename>')
 @login_required
 def thumbnail(filename):
     """Return thumbnail image for video"""
-    video_path = session.get('video_path', Config.VIDEO_PATH)
-    cache_dir = get_cache_dir(video_path)
-    thumb_dir = os.path.join(cache_dir, 'thumbnails')
     thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
-    thumb_path = os.path.join(thumb_dir, thumb_name)
+    thumb_path = os.path.join('thumbnails', thumb_name)
 
     if not os.path.exists(thumb_path):
-        generate_thumbnail(filename, video_path)
+        generate_thumbnail(filename)
 
     if os.path.exists(thumb_path):
         return send_file(thumb_path, mimetype='image/jpeg')
@@ -628,125 +454,19 @@ def delete_tag(filename, tag_name):
     conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/video//refresh-thumb', methods=['POST'])
+@app.route('/api/video/<filename>/refresh-thumb', methods=['POST'])
 @login_required
 def refresh_thumbnail(filename):
     """Refresh video thumbnail"""
-    video_path = session.get('video_path', Config.VIDEO_PATH)
-    cache_dir = get_cache_dir(video_path)
-    thumb_dir = os.path.join(cache_dir, 'thumbnails')
     thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
-    thumb_path = os.path.join(thumb_dir, thumb_name)
+    thumb_path = os.path.join('thumbnails', thumb_name)
 
     # Remove existing
     if os.path.exists(thumb_path):
         os.remove(thumb_path)
 
-    thumb = generate_thumbnail(filename, video_path)
-    return jsonify({'success': bool(thumb), 'thumbnail': thumb})
-@app.route('/api/video/<filename>/info', methods=['GET'])
-@login_required
-def get_video_info_api(filename):
-    """Get video metadata API"""
-    video_path = session.get('video_path', Config.VIDEO_PATH)
-    video_path_full = os.path.join(video_path, filename)
-
-    if not os.path.exists(video_path_full):
-        return jsonify({'error': 'Video not found'}), 404
-
-    meta = get_video_metadata_cached(video_path_full, video_path)
-    size = os.stat(video_path_full).st_size
-
-    return jsonify({
-        'filename': filename,
-        'size': format_filesize(size),
-        'width': meta.get('width', ''),
-        'height': meta.get('height', ''),
-        'bitrate': format_bitrate(meta.get('bitrate', '')),
-        'fps': format_fps(meta.get('fps', ''))
-    })
-
-@app.route('/api/user/profile', methods=['GET'])
-@login_required
-def get_user_profile():
-    """Get current user profile"""
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, video_path FROM users WHERE username = %s", (session['user_id'],))
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return jsonify(user)
-
-@app.route('/api/user/profile', methods=['POST'])
-@login_required
-def update_user_profile():
-    """Update user profile (username, password, video_path)"""
-    data = request.get_json()
-    username = session['user_id']
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    updates = []
-    params = []
-
-    # Update username
-    new_username = data.get('username', '').strip()
-    if new_username and new_username != username:
-        # Check if username exists
-        cursor.execute("SELECT id FROM users WHERE username = %s AND username != %s", (new_username, username))
-        if cursor.fetchone():
-            cursor.close()
-            conn.close()
-            return jsonify({'error': 'Username already exists'}), 400
-        updates.append("username = %s")
-        params.append(new_username)
-        session['user_id'] = new_username
-        session['username'] = new_username
-
-    # Update password (requires current password verification)
-    new_password = data.get('password', '').strip()
-    verify_password = data.get('verify_password', '').strip()
-    if new_password:
-        if not verify_password:
-            return jsonify({'error': 'Current password required'}), 400
-        # Verify current password
-        cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
-        user = cursor.fetchone()
-        if not bcrypt.checkpw(verify_password.encode(), user['password_hash'].encode()):
-            return jsonify({'error': 'Current password incorrect'}), 400
-        pw_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-        updates.append("password_hash = %s")
-        params.append(pw_hash)
-
-    # Update video path
-    video_path = data.get('video_path', '').strip()
-    if video_path:
-        updates.append("video_path = %s")
-        params.append(video_path)
-        session['video_path'] = video_path
-
-    if updates:
-        params.append(username)
-        cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE username = %s", params)
-        conn.commit()
-
-    cursor.close()
-    conn.close()
-    return jsonify({'success': True})
-
-@app.route('/settings')
-@login_required
-def settings_page():
-    """Settings page"""
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, video_path FROM users WHERE username = %s", (session['user_id'],))
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return render_template('settings.html', user=user)
+    thumb = generate_thumbnail(filename)
+    return jsonify({'success': bool(thumb)})
 
 # ==================== Init ====================
 
