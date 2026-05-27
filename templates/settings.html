@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}设置 - CineVault{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <div class="settings-container">
+        <a href="/" class="back-btn">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            返回
+        </a>
+        <h1 class="settings-title">账户设置</h1>
+
+        <div class="settings-section">
+            <h2 class="section-title">个人信息</h2>
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" class="form-input" value="{{ user.username }}">
+            </div>
+            <div class="form-group">
+                <label for="video-path">视频库路径</label>
+                <input type="text" id="video-path" class="form-input" value="{{ user.video_path or './video' }}" placeholder="./video">
+                <p class="form-hint">设置您自定义的视频文件夹路径</p>
+            </div>
+            <button class="save-btn" onclick="saveProfile()">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                保存更改
+            </button>
+        </div>
+
+        <div class="settings-section">
+            <h2 class="section-title">修改密码</h2>
+            <div class="form-group">
+                <label for="current-password">当前密码</label>
+                <input type="password" id="current-password" class="form-input" placeholder="请输入当前密码">
+            </div>
+            <div class="form-group">
+                <label for="new-password">新密码</label>
+                <input type="password" id="new-password" class="form-input" placeholder="请输入新密码">
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">确认新密码</label>
+                <input type="password" id="confirm-password" class="form-input" placeholder="请再次输入新密码">
+            </div>
+            <button class="save-btn" onclick="savePassword()">
+                <i data-lucide="lock" class="w-4 h-4"></i>
+                更新密码
+            </button>
+        </div>
+
+        <div id="settings-message" class="message hidden"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/main.js"></script>
+<script>
+    lucide.createIcons();
+
+    function showMessage(text, isError = false) {
+        const msg = document.getElementById('settings-message');
+        msg.textContent = text;
+        msg.className = 'message ' + (isError ? 'error' : 'success');
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 3000);
+    }
+
+    async function saveProfile() {
+        const username = document.getElementById('username').value.trim();
+        const videoPath = document.getElementById('video-path').value.trim();
+
+        try {
+            const res = await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, video_path: videoPath})
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showMessage('设置已保存！');
+                lucide.createIcons();
+            } else {
+                showMessage(data.error || '保存失败', true);
+            }
+        } catch (err) {
+            showMessage('连接错误', true);
+        }
+    }
+
+    async function savePassword() {
+        const currentPw = document.getElementById('current-password').value;
+        const newPw = document.getElementById('new-password').value;
+        const confirmPw = document.getElementById('confirm-password').value;
+
+        if (!currentPw) {
+            showMessage('请输入当前密码', true);
+            return;
+        }
+
+        if (!newPw) {
+            showMessage('请输入新密码', true);
+            return;
+        }
+
+        if (newPw !== confirmPw) {
+            showMessage('两次输入的密码不一致', true);
+            return;
+        }
+
+        if (newPw.length < 6) {
+            showMessage('密码长度至少为6个字符', true);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/user/profile', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    password: newPw,
+                    verify_password: currentPw
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showMessage('密码更新成功！');
+                document.getElementById('current-password').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('confirm-password').value = '';
+            } else {
+                showMessage(data.error || '密码更新失败', true);
+            }
+        } catch (err) {
+            showMessage('连接错误', true);
+        }
+    }
+</script>
+{% endblock %}

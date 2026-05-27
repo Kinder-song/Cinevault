@@ -1,23 +1,25 @@
 {% extends "base.html" %}
-{% block title %}CineVault - Video Library{% endblock %}
+{% block title %}CineVault - 视频库{% endblock %}
 
 {% block content %}
 <div class="home-page">
     <div class="filter-bar">
-        <div class="search-box">
-            <i data-lucide="search" class="w-4 h-4"></i>
-            <input type="text" id="search-input" placeholder="Search videos..." oninput="filterVideos()">
+        <div class="filter-left">
+            <div class="search-box">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="search-input" class="search-input" placeholder="搜索视频或标签..." oninput="filterVideos()">
+            </div>
         </div>
         <select class="filter-select" id="sort-select" onchange="filterVideos()">
-            <option value="name">Sort by Name</option>
-            <option value="size">Sort by Size</option>
-            <option value="date">Sort by Date</option>
+            <option value="name">按名称排序</option>
+            <option value="size">按大小排序</option>
+            <option value="date">按日期排序</option>
         </select>
     </div>
 
     <div class="video-grid" id="video-grid">
         {% for video in videos %}
-        <div class="video-card" data-filename="{{ video.filename }}" data-title="{{ video.title }}" data-size="{{ video.size }}">
+        <div class="video-card" data-filename="{{ video.filename }}" data-title="{{ video.title }}" data-size="{{ video.size }}" data-created="{{ video.created }}" data-tags="{{ tags_by_video.get(video.filename, [])|map(attribute='name')|join(',') }}">
             <div class="card-media" onclick="window.location.href='/video/{{ video.filename|urlencode }}'">
                 <div class="thumbnail-container">
                     {% if video.thumbnail %}
@@ -59,7 +61,7 @@
                 </div>
 
                 <div class="tag-editor hidden">
-                    <input type="text" class="tag-input" placeholder="Press Enter to add tag..."
+                    <input type="text" class="tag-input" placeholder="按回车添加标签..."
                            onkeydown="handleTagInput(event, '{{ video.filename|urlencode }}')">
                 </div>
             </div>
@@ -75,16 +77,19 @@
     lucide.createIcons();
 
     function filterVideos() {
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
         const sortBy = document.getElementById('sort-select').value;
         const cards = document.querySelectorAll('.video-card');
 
         let cardsArray = Array.from(cards);
 
-        // Filter
+        // Filter by title or tags
         cardsArray.forEach(card => {
             const title = card.dataset.title.toLowerCase();
-            card.style.display = title.includes(searchTerm) ? '' : 'none';
+            const tags = card.dataset.tags ? card.dataset.tags.toLowerCase() : '';
+            const matchesTitle = title.includes(searchTerm);
+            const matchesTags = tags.includes(searchTerm);
+            card.style.display = (matchesTitle || matchesTags) ? '' : 'none';
         });
 
         // Sort
@@ -92,6 +97,7 @@
         cardsArray.sort((a, b) => {
             if (sortBy === 'name') return a.dataset.title.localeCompare(b.dataset.title);
             if (sortBy === 'size') return parseInt(b.dataset.size) - parseInt(a.dataset.size);
+            if (sortBy === 'date') return parseInt(b.dataset.created) - parseInt(a.dataset.created);
             return 0;
         });
 

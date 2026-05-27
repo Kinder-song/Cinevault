@@ -15,9 +15,16 @@
     <nav class="fixed top-0 left-0 right-0 h-16 glass-nav flex items-center justify-between px-6 z-50">
         <a href="/" class="brand-logo">CineVault</a>
         {% if session.user_id %}
-        <div class="flex items-center gap-4">
-            <span class="text-sm text-white/60">{{ session.username }}</span>
-            <a href="/logout" class="logout-btn">
+        <div class="user-info">
+            <a href="/settings" class="settings-link" title="设置">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </a>
+            <span class="user-name">{{ session.username }}</span>
+            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+                <i data-lucide="sun" class="w-5 h-5 sun-icon"></i>
+                <i data-lucide="moon" class="w-5 h-5 moon-icon hidden"></i>
+            </button>
+            <a href="/logout" class="logout-btn" title="退出">
                 <i data-lucide="log-out" class="w-4 h-4"></i>
             </a>
         </div>

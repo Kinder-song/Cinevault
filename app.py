@@ -55,9 +55,16 @@ def init_database():
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(100) UNIQUE NOT NULL,
-            password_hash VARCHAR(255) NOT NULL
+            password_hash VARCHAR(255) NOT NULL,
+            video_path VARCHAR(500) DEFAULT './video'
         )
     """)
+
+    # Add video_path column if not exists (migration for existing databases)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN video_path VARCHAR(500) DEFAULT './video' AFTER password_hash")
+    except:
+        pass  # Column might already exist
 
     # Create videos table
     cursor.execute("""
@@ -152,9 +159,11 @@ def format_filesize(size):
         size /= 1024
     return f"{size:.1f}TB"
 
-def generate_thumbnail(filename):
+def generate_thumbnail(filename, video_path=None):
     """Generate thumbnail for video, returns thumbnail path or None"""
-    video_path = os.path.join(Config.VIDEO_PATH, filename)
+    if video_path is None:
+        video_path = get_user_video_path(session.get('user_id', ''))
+    video_path_full = os.path.join(video_path, filename)
     thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
     thumb_path = os.path.join('thumbnails', thumb_name)
 
@@ -185,15 +194,35 @@ def generate_thumbnail(filename):
         pass
     return None
 
-def scan_videos():
+def get_user_video_path(username):
+    """Get user's custom video path"""
+    conn = get_db_connection()
+    if not conn:
+        return Config.VIDEO_PATH
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT video_path FROM users WHERE username = %s", (username,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if user and user['video_path']:
+        return user['video_path']
+    return Config.VIDEO_PATH
+
+def scan_videos(video_path=None):
     """Scan video directory and return list of video info"""
+    if video_path is None:
+        video_path = get_user_video_path(session.get('user_id', ''))
+    if not os.path.exists(video_path):
+        return []
     videos = []
-    for fname in os.listdir(Config.VIDEO_PATH):
+    for fname in os.listdir(video_path):
         ext = os.path.splitext(fname)[1].lower()
         if ext not in VIDEO_EXTENSIONS:
             continue
-        fpath = os.path.join(Config.VIDEO_PATH, fname)
-        size = os.stat(fpath).st_size
+        fpath = os.path.join(video_path, fname)
+        stat = os.stat(fpath)
+        size = stat.st_size
+        mtime = stat.st_mtime
         duration = get_video_duration(fpath)
         videos.append({
             'filename': fname,
@@ -201,7 +230,8 @@ def scan_videos():
             'size': size,
             'size_formatted': format_filesize(size),
             'duration': duration,
-            'duration_formatted': format_duration(duration)
+            'duration_formatted': format_duration(duration),
+            'created': mtime
         })
     return videos
 
@@ -228,6 +258,7 @@ def login():
     if user and bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         session['user_id'] = username
         session['username'] = username
+        session['video_path'] = user.get('video_path', Config.VIDEO_PATH)
         return jsonify({'success': True})
 
     return jsonify({'error': 'Invalid credentials'}), 401
@@ -271,11 +302,12 @@ def index():
 @app.route('/video/<filename>')
 @login_required
 def video_page(filename):
-    video_path = os.path.join(Config.VIDEO_PATH, filename)
-    if not os.path.exists(video_path):
+    video_path = get_user_video_path(session['user_id'])
+    video_path_full = os.path.join(video_path, filename)
+    if not os.path.exists(video_path_full):
         return "Video not found", 404
 
-    size = os.stat(video_path).st_size
+    size = os.stat(video_path_full).st_size
 
     video = {
         'filename': filename,
@@ -305,11 +337,12 @@ def video_page(filename):
 @login_required
 def stream_video(filename):
     """Stream video with Range request support"""
-    video_path = os.path.join(Config.VIDEO_PATH, filename)
-    if not os.path.exists(video_path):
+    video_path = get_user_video_path(session['user_id'])
+    video_path_full = os.path.join(video_path, filename)
+    if not os.path.exists(video_path_full):
         return "Video not found", 404
 
-    file_size = os.stat(video_path).st_size
+    file_size = os.stat(video_path_full).st_size
 
     range_header = request.headers.get('Range')
     if range_header:
@@ -319,7 +352,7 @@ def stream_video(filename):
         length = end - start + 1
 
         def generate():
-            with open(video_path, 'rb') as f:
+            with open(video_path_full, 'rb') as f:
                 f.seek(start)
                 remaining = length
                 chunk_size = 1024 * 1024  # 1MB chunks
@@ -339,7 +372,7 @@ def stream_video(filename):
 
     # No Range header - stream entire file
     def generate():
-        with open(video_path, 'rb') as f:
+        with open(video_path_full, 'rb') as f:
             while chunk := f.read(1024 * 1024):
                 yield chunk
 
@@ -467,6 +500,88 @@ def refresh_thumbnail(filename):
 
     thumb = generate_thumbnail(filename)
     return jsonify({'success': bool(thumb)})
+
+@app.route('/api/user/profile', methods=['GET'])
+@login_required
+def get_user_profile():
+    """Get current user profile"""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, username, video_path FROM users WHERE username = %s", (session['user_id'],))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return jsonify(user)
+
+@app.route('/api/user/profile', methods=['POST'])
+@login_required
+def update_user_profile():
+    """Update user profile (username, password, video_path)"""
+    data = request.get_json()
+    username = session['user_id']
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    updates = []
+    params = []
+
+    # Update username
+    new_username = data.get('username', '').strip()
+    if new_username and new_username != username:
+        # Check if username exists
+        cursor.execute("SELECT id FROM users WHERE username = %s AND username != %s", (new_username, username))
+        if cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Username already exists'}), 400
+        updates.append("username = %s")
+        params.append(new_username)
+        session['user_id'] = new_username
+        session['username'] = new_username
+
+    # Update password (requires current password verification)
+    new_password = data.get('password', '').strip()
+    verify_password = data.get('verify_password', '').strip()
+    if new_password:
+        if not verify_password:
+            return jsonify({'error': 'Current password required'}), 400
+        # Verify current password
+        cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        if not bcrypt.checkpw(verify_password.encode(), user['password_hash'].encode()):
+            return jsonify({'error': 'Current password incorrect'}), 400
+        pw_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        updates.append("password_hash = %s")
+        params.append(pw_hash)
+
+    # Update video path
+    video_path = data.get('video_path', '').strip()
+    if video_path:
+        updates.append("video_path = %s")
+        params.append(video_path)
+        session['video_path'] = video_path
+
+    if updates:
+        params.append(username)
+        cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE username = %s", params)
+        conn.commit()
+
+    cursor.close()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/settings')
+@login_required
+def settings_page():
+    """Settings page"""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, username, video_path FROM users WHERE username = %s", (session['user_id'],))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return render_template('settings.html', user=user)
 
 # ==================== Init ====================
 

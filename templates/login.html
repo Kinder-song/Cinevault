@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Login - CineVault{% endblock %}
+{% block title %}登录 - CineVault{% endblock %}
 
 {% block nav %}{% endblock %}
 
@@ -11,20 +11,20 @@
 
     <div class="login-container relative z-10">
         <h1 class="login-title">CineVault</h1>
-        <p class="login-subtitle">Your Personal Video Archive</p>
+        <p class="login-subtitle">您的私人视频档案库</p>
 
         <form id="login-form" class="login-form">
             <div class="input-group">
                 <input type="text" id="username" name="username" required autocomplete="username" placeholder=" ">
-                <label for="username">Username</label>
+                <label for="username">用户名</label>
             </div>
             <div class="input-group">
                 <input type="password" id="password" name="password" required autocomplete="current-password" placeholder=" ">
-                <label for="password">Password</label>
+                <label for="password">密码</label>
             </div>
             <div id="login-error" class="error-message hidden"></div>
             <button type="submit" class="login-btn">
-                <span>Sign In</span>
+                <span>登录</span>
             </button>
         </form>
     </div>
@@ -55,13 +55,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if (data.success) {
             window.location.href = '/';
         } else {
-            errorEl.textContent = data.error || 'Login failed';
+            errorEl.textContent = data.error || '登录失败';
             errorEl.classList.remove('hidden');
             form.classList.add('shake');
             setTimeout(() => form.classList.remove('shake'), 500);
         }
     } catch (err) {
-        errorEl.textContent = 'Connection error';
+        errorEl.textContent = '连接错误';
         errorEl.classList.remove('hidden');
     }
 
