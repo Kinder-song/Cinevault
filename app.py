@@ -124,20 +124,20 @@ def login_required(f):
 # ==================== Video Utils ====================
 
 def get_video_duration(filepath):
-    """Get video duration in seconds using ffprobe via ffmpeg"""
-    cmd = [
-        Config.FFMPEG_PATH, '-v', 'error',
-        '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1',
-        filepath
-    ]
+    """Get video duration in seconds by parsing ffmpeg stderr output"""
+    cmd = [Config.FFMPEG_PATH, '-i', filepath]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        duration_str = result.stdout.strip()
-        if duration_str:
-            return int(float(duration_str))
-    except:
-        pass
+        for line in result.stderr.split('\n'):
+            if 'Duration:' in line:
+                # Parse "Duration: HH:MM:SS.ms"
+                duration_str = line.split('Duration:')[1].split(',')[0].strip()
+                parts = duration_str.split(':')
+                if len(parts) == 3:
+                    h, m, s = parts
+                    return int(float(h) * 3600 + float(m) * 60 + float(s))
+    except Exception as e:
+        print(f"Duration error: {e}")
     return None
 
 def format_duration(seconds):
@@ -150,6 +150,62 @@ def format_duration(seconds):
     if h > 0:
         return f"{h}:{m:02d}:{s:02d}"
     return f"{m}:{s:02d}"
+
+def get_video_info(filepath):
+    """Get video metadata by parsing ffmpeg stderr output"""
+    cmd = [Config.FFMPEG_PATH, '-i', filepath]
+    info = {}
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        for line in result.stderr.split('\n'):
+            if 'Stream #0' in line and 'Video:' in line:
+                # Parse "Stream #0:0(...): Video: h264 ... 3840x2160 [...], ... 60 fps"
+                # Extract resolution - look for WxH before [SAR
+                import re
+                res_match = re.search(r'(\d{2,4})x(\d{2,4})\s+\[SAR', line)
+                if res_match:
+                    info['width'] = res_match.group(1)
+                    info['height'] = res_match.group(2)
+                else:
+                    # Fallback: try simple WxH pattern
+                    res_match = re.search(r'(\d{3,4})x(\d{3,4})', line)
+                    if res_match:
+                        info['width'] = res_match.group(1)
+                        info['height'] = res_match.group(2)
+                # Extract fps
+                fps_match = re.search(r'(\d+)\s*fps', line)
+                if fps_match:
+                    info['r_frame_rate'] = fps_match.group(1)
+                # Extract bitrate from main line
+                bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', result.stderr)
+                if bitrate_match:
+                    info['bit_rate'] = str(int(bitrate_match.group(1)) * 1000)
+        return info
+    except Exception as e:
+        print(f"Video info error: {e}")
+        return {}
+
+def format_bitrate(bitrate):
+    """Format bitrate to human readable"""
+    if not bitrate:
+        return None
+    try:
+        bps = int(bitrate)
+        return f"{bps / 1000:.0f} kbps"
+    except:
+        return None
+
+def format_fps(fps_str):
+    """Format frame rate to decimal"""
+    if not fps_str:
+        return None
+    try:
+        if '/' in fps_str:
+            num, den = fps_str.split('/')
+            return f"{float(num) / float(den):.2f}"
+        return fps_str
+    except:
+        return None
 
 def format_filesize(size):
     """Format bytes to human readable string"""
@@ -170,8 +226,9 @@ def generate_thumbnail(filename, video_path=None):
     if os.path.exists(thumb_path):
         return thumb_path
 
-    duration = get_video_duration(video_path)
+    duration = get_video_duration(video_path_full)
     if not duration:
+        print(f"Could not get duration for {video_path_full}")
         return None
 
     # Random time point between 0.5s and 10% of video duration
@@ -181,17 +238,19 @@ def generate_thumbnail(filename, video_path=None):
     cmd = [
         Config.FFMPEG_PATH, '-y',
         '-ss', str(random_time),
-        '-i', video_path,
+        '-i', video_path_full,
         '-vframes', '1',
         '-q:v', '2',
         thumb_path
     ]
     try:
-        subprocess.run(cmd, capture_output=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.stderr:
+            print(f"Thumbnail stderr: {result.stderr}")
         if os.path.exists(thumb_path):
             return thumb_path
-    except:
-        pass
+    except Exception as e:
+        print(f"Thumbnail error: {e}")
     return None
 
 def get_user_video_path(username):
@@ -224,6 +283,7 @@ def scan_videos(video_path=None):
         size = stat.st_size
         mtime = stat.st_mtime
         duration = get_video_duration(fpath)
+        video_info = get_video_info(fpath)
         videos.append({
             'filename': fname,
             'title': os.path.splitext(fname)[0],
@@ -231,7 +291,11 @@ def scan_videos(video_path=None):
             'size_formatted': format_filesize(size),
             'duration': duration,
             'duration_formatted': format_duration(duration),
-            'created': mtime
+            'created': mtime,
+            'width': video_info.get('width', ''),
+            'height': video_info.get('height', ''),
+            'bitrate': format_bitrate(video_info.get('bit_rate', '')),
+            'fps': format_fps(video_info.get('r_frame_rate', ''))
         })
     return videos
 
@@ -308,6 +372,12 @@ def video_page(filename):
         return "Video not found", 404
 
     size = os.stat(video_path_full).st_size
+    video_info = get_video_info(video_path_full)
+
+    width = video_info.get('width', '')
+    height = video_info.get('height', '')
+    bitrate = format_bitrate(video_info.get('bit_rate', ''))
+    fps = format_fps(video_info.get('r_frame_rate', ''))
 
     video = {
         'filename': filename,
@@ -315,7 +385,11 @@ def video_page(filename):
         'size': size,
         'size_formatted': format_filesize(size),
         'duration': None,
-        'duration_formatted': None
+        'duration_formatted': None,
+        'width': width,
+        'height': height,
+        'bitrate': bitrate,
+        'fps': fps
     }
 
     # Get tags
@@ -491,6 +565,7 @@ def delete_tag(filename, tag_name):
 @login_required
 def refresh_thumbnail(filename):
     """Refresh video thumbnail"""
+    video_path = get_user_video_path(session['user_id'])
     thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
     thumb_path = os.path.join('thumbnails', thumb_name)
 
@@ -498,8 +573,30 @@ def refresh_thumbnail(filename):
     if os.path.exists(thumb_path):
         os.remove(thumb_path)
 
-    thumb = generate_thumbnail(filename)
-    return jsonify({'success': bool(thumb)})
+    thumb = generate_thumbnail(filename, video_path)
+    return jsonify({'success': bool(thumb), 'thumbnail': thumb})
+
+@app.route('/api/video/<filename>/info', methods=['GET'])
+@login_required
+def get_video_info_api(filename):
+    """Get video metadata API"""
+    video_path = get_user_video_path(session['user_id'])
+    video_path_full = os.path.join(video_path, filename)
+
+    if not os.path.exists(video_path_full):
+        return jsonify({'error': 'Video not found'}), 404
+
+    video_info = get_video_info(video_path_full)
+    size = os.stat(video_path_full).st_size
+
+    return jsonify({
+        'filename': filename,
+        'size': format_filesize(size),
+        'width': video_info.get('width', ''),
+        'height': video_info.get('height', ''),
+        'bitrate': format_bitrate(video_info.get('bit_rate', '')),
+        'fps': format_fps(video_info.get('r_frame_rate', ''))
+    })
 
 @app.route('/api/user/profile', methods=['GET'])
 @login_required

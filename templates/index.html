@@ -7,7 +7,7 @@
         <div class="filter-left">
             <div class="search-box">
                 <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="search-input" class="search-input" placeholder="搜索视频或标签..." oninput="filterVideos()">
+                <input type="text" id="search-input" class="search-input" placeholder="搜索视频、标签或元数据..." oninput="filterVideos()">
             </div>
         </div>
         <select class="filter-select" id="sort-select" onchange="filterVideos()">
@@ -19,7 +19,16 @@
 
     <div class="video-grid" id="video-grid">
         {% for video in videos %}
-        <div class="video-card" data-filename="{{ video.filename }}" data-title="{{ video.title }}" data-size="{{ video.size }}" data-created="{{ video.created }}" data-tags="{{ tags_by_video.get(video.filename, [])|map(attribute='name')|join(',') }}">
+        <div class="video-card"
+             data-filename="{{ video.filename }}"
+             data-title="{{ video.title }}"
+             data-size="{{ video.size }}"
+             data-created="{{ video.created }}"
+             data-tags="{{ tags_by_video.get(video.filename, [])|map(attribute='name')|join(',') }}"
+             data-width="{{ video.width }}"
+             data-height="{{ video.height }}"
+             data-bitrate="{{ video.bitrate }}"
+             data-fps="{{ video.fps }}">
             <div class="card-media" onclick="window.location.href='/video/{{ video.filename|urlencode }}'">
                 <div class="thumbnail-container">
                     {% if video.thumbnail %}
@@ -45,6 +54,18 @@
             <div class="card-info">
                 <h3 class="card-title" onclick="window.location.href='/video/{{ video.filename|urlencode }}'">{{ video.title }}</h3>
                 <p class="card-meta">{{ video.size_formatted }}</p>
+
+                <div class="card-badges">
+                    {% if video.width and video.height %}
+                    <span class="info-badge">{{ video.width }}×{{ video.height }}</span>
+                    {% endif %}
+                    {% if video.fps %}
+                    <span class="info-badge">{{ video.fps }} fps</span>
+                    {% endif %}
+                    {% if video.bitrate %}
+                    <span class="info-badge">{{ video.bitrate }}</span>
+                    {% endif %}
+                </div>
 
                 <div class="card-tags" onclick="toggleTagEditor(event, this)">
                     {% for tag in tags_by_video.get(video.filename, []) %}
@@ -83,13 +104,23 @@
 
         let cardsArray = Array.from(cards);
 
-        // Filter by title or tags
+        // Filter by title, tags, or metadata
         cardsArray.forEach(card => {
             const title = card.dataset.title.toLowerCase();
             const tags = card.dataset.tags ? card.dataset.tags.toLowerCase() : '';
+            const width = (card.dataset.width || '').toLowerCase();
+            const height = (card.dataset.height || '').toLowerCase();
+            const fps = (card.dataset.fps || '').toLowerCase();
+            const bitrate = (card.dataset.bitrate || '').toLowerCase();
+
             const matchesTitle = title.includes(searchTerm);
             const matchesTags = tags.includes(searchTerm);
-            card.style.display = (matchesTitle || matchesTags) ? '' : 'none';
+            const matchesMeta = width.includes(searchTerm) ||
+                               height.includes(searchTerm) ||
+                               fps.includes(searchTerm) ||
+                               bitrate.includes(searchTerm);
+
+            card.style.display = (matchesTitle || matchesTags || matchesMeta) ? '' : 'none';
         });
 
         // Sort
