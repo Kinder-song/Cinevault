@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, jsonify, send_file, Response, send_from_directory
 from functools import wraps
+from contextlib import contextmanager
 import os
 import re
 import mysql.connector
@@ -52,6 +53,24 @@ def get_db_connection():
         return pool.get_connection()
     except Exception:
         return None
+
+@contextmanager
+def with_db_cursor(dictionary=True):
+    """Context manager for database operations with automatic cleanup."""
+    conn = get_db_connection()
+    if conn is None:
+        yield None
+        return
+    cursor = conn.cursor(dictionary=dictionary)
+    try:
+        yield cursor
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 def init_database():
     init_config = {'host': Config.DB_HOST, 'port': Config.DB_PORT,
@@ -360,19 +379,24 @@ def format_fps(fps_str):
     except: return None
 
 def format_filesize(size):
+    s = float(size)
     for unit in ['B', 'KB', 'MB', 'GB']:
-        if size < 1024: return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} TB"
+        if s < 1024: return f"{s:.1f} {unit}"
+        s /= 1024
+    return f"{s:.1f} TB"
 
 def get_user_video_path(username):
-    conn = get_db_connection()
-    if not conn: return Config.VIDEO_PATH
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT video_path FROM users WHERE username = %s", (username,))
-    user = cursor.fetchone()
-    cursor.close(); conn.close()
-    return user['video_path'] if (user and user['video_path']) else Config.VIDEO_PATH
+    # Try session cache first
+    if 'video_path' in session:
+        return session['video_path']
+    with with_db_cursor() as cursor:
+        if cursor is None:
+            return Config.VIDEO_PATH
+        cursor.execute("SELECT video_path FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        path = user['video_path'] if (user and user['video_path']) else Config.VIDEO_PATH
+        session['video_path'] = path
+        return path
 
 # ==================== Routes: Auth ====================
 
