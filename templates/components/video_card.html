@@ -10,9 +10,7 @@
                 <i data-lucide="play" class="play-icon"></i>
             </div>
             {% endif %}
-            <video class="preview-video" muted preload="none" loop>
-                <source src="/stream/{{ video.filename|urlencode }}" type="video/mp4">
-            </video>
+            <div class="preview-container"></div>
         </div>
         <div class="card-overlay">
             <div class="flow-light"></div>

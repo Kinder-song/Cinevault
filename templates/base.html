@@ -4,16 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CineVault{% endblock %}</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet"></noscript>
+    <script defer src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     {% block nav %}
     <nav class="fixed top-0 left-0 right-0 h-16 glass-nav flex items-center justify-between px-6 z-50">
-        <a href="/" class="brand-logo">CineVault</a>
+        <div class="nav-left">
+            <a href="/" class="brand-logo">CineVault</a>
+            <a href="/dashboard" class="nav-link" title="仪表盘">
+                <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                <span>仪表盘</span>
+            </a>
+        </div>
         {% if session.user_id %}
         <div class="user-info">
             <a href="/settings" class="settings-link" title="设置">
@@ -37,7 +47,12 @@
     </main>
 
     <script>
-        lucide.createIcons();
+        (function initIcons() {
+            if (window.lucide) { lucide.createIcons(); return; }
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.lucide) lucide.createIcons();
+            });
+        })();
     </script>
     {% block scripts %}{% endblock %}
 </body>

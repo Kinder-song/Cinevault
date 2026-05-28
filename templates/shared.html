@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - CineVault 分享</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .shared-page { background: #0d1117; }
+        .shared-container { max-width: 960px; margin: 0 auto; }
+        .shared-video-wrapper { margin-bottom: 1.5rem; }
+        .shared-video-wrapper video { width: 100%; border-radius: 12px; }
+        .shared-footer { text-align: center; padding: 1rem; color: rgba(255,255,255,0.4); font-size: 0.85rem; }
+        .shared-footer a { color: rgba(255,255,255,0.6); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="shared-page">
+        <div class="shared-container">
+            <div class="shared-header">
+                <h1 class="shared-title">{{ title }}</h1>
+                <p class="shared-subtitle">通过 CineVault 分享</p>
+            </div>
+            <div class="shared-video-wrapper">
+                <video controls playsinline preload="auto">
+                    <source src="/stream/{{ video_filename|urlencode }}">
+                </video>
+            </div>
+            <div class="shared-footer">
+                Powered by <a href="/">CineVault</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -6,8 +6,18 @@
     <div class="player-layout">
         <div class="player-section">
             <div class="video-wrapper">
-                <video id="video-player" class="video-element" playsinline data-filename="{{ video.filename }}">
-                    <source src="/stream/{{ video.filename|urlencode }}" type="video/mp4">
+                <video id="video-player" class="video-element" playsinline preload="auto" controlslist="nodownload"
+                       data-filename="{{ video.filename }}"
+                       data-duration="{{ video.duration or 0 }}"
+                       data-progress="{{ video.progress or 0 }}">
+                    {% set ext = video.filename.split('.')[-1].lower() %}
+                    {% set mime_map = {'mp4': 'video/mp4', 'mkv': 'video/x-matroska', 'webm': 'video/webm', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo', 'm4v': 'video/x-m4v'} %}
+                    <source src="/stream/{{ video.filename|urlencode }}" type="{{ mime_map.get(ext, 'video/mp4') }}">
+                    {% if subtitles %}
+                    {% for sub in subtitles %}
+                    <track kind="subtitles" src="/subtitle/{{ sub.filename|urlencode }}" srclang="zh" label="{{ sub.label }}" {% if loop.first %}default{% endif %}>
+                    {% endfor %}
+                    {% endif %}
                 </video>
 
                 <div class="custom-controls">
@@ -38,14 +48,31 @@
                         </div>
 
                         <div class="controls-right">
+                            <button class="control-btn" id="skip-back-btn" title="后退10秒 (J)">
+                                <i data-lucide="skip-back" class="w-4 h-4"></i>
+                            </button>
+                            <button class="control-btn" id="skip-fwd-btn" title="前进10秒 (L)">
+                                <i data-lucide="skip-forward" class="w-4 h-4"></i>
+                            </button>
+
                             <select class="speed-select" id="speed-select">
+                                <option value="0.25">0.25x</option>
                                 <option value="0.5">0.5x</option>
                                 <option value="1" selected>1x</option>
+                                <option value="1.25">1.25x</option>
                                 <option value="1.5">1.5x</option>
                                 <option value="2">2x</option>
                             </select>
 
-                            <button class="control-btn" id="fullscreen-btn" title="全屏">
+                            <button class="control-btn" id="pip-btn" title="画中画 (P)">
+                                <i data-lucide="picture-in-picture" class="w-5 h-5"></i>
+                            </button>
+
+                            <button class="control-btn" id="theater-btn" title="影院模式 (T)">
+                                <i data-lucide="film" class="w-5 h-5"></i>
+                            </button>
+
+                            <button class="control-btn" id="fullscreen-btn" title="全屏 (F)">
                                 <i data-lucide="maximize" class="w-5 h-5"></i>
                             </button>
                         </div>
@@ -63,54 +90,98 @@
                 <h1 class="video-title">{{ video.title }}</h1>
             </div>
 
+            <div class="player-actions">
+                <button class="favorite-btn {% if video.is_favorite %}active{% endif %}" id="favorite-btn" onclick="toggleFavorite()">
+                    <i data-lucide="heart" class="w-4 h-4"></i>
+                    <span>{% if video.is_favorite %}已收藏{% else %}收藏{% endif %}</span>
+                </button>
+                <div class="rating-stars" id="rating-stars" data-rating="{{ video.rating }}" title="评分">
+                    {% for i in range(1, 6) %}
+                    <i data-lucide="star" class="w-4 h-4 star {% if i <= video.rating %}selected{% endif %}" data-val="{{ i }}"></i>
+                    {% endfor %}
+                </div>
+                <span class="spacer"></span>
+                <button class="share-btn" onclick="openShareModal()">
+                    <i data-lucide="share-2" class="w-4 h-4"></i>
+                    分享
+                </button>
+            </div>
+
             <div class="video-meta-grid">
                 <div class="meta-item">
-                    <div class="meta-icon">
-                        <i data-lucide="scan" class="w-5 h-5"></i>
-                    </div>
+                    <div class="meta-icon"><i data-lucide="scan" class="w-5 h-5"></i></div>
                     <div class="meta-content">
                         <span class="meta-label">分辨率</span>
                         <span class="meta-value">{% if video.width and video.height %}{{ video.width }} × {{ video.height }}{% else %}--{% endif %}</span>
                     </div>
                 </div>
-
                 <div class="meta-item">
-                    <div class="meta-icon">
-                        <i data-lucide="gauge" class="w-5 h-5"></i>
-                    </div>
+                    <div class="meta-icon"><i data-lucide="gauge" class="w-5 h-5"></i></div>
                     <div class="meta-content">
                         <span class="meta-label">帧率</span>
                         <span class="meta-value">{% if video.fps %}{{ video.fps }} fps{% else %}--{% endif %}</span>
                     </div>
                 </div>
-
                 <div class="meta-item">
-                    <div class="meta-icon">
-                        <i data-lucide="activity" class="w-5 h-5"></i>
-                    </div>
+                    <div class="meta-icon"><i data-lucide="activity" class="w-5 h-5"></i></div>
                     <div class="meta-content">
                         <span class="meta-label">码率</span>
                         <span class="meta-value">{% if video.bitrate %}{{ video.bitrate }}{% else %}--{% endif %}</span>
                     </div>
                 </div>
-
                 <div class="meta-item">
-                    <div class="meta-icon">
-                        <i data-lucide="hard-drive" class="w-5 h-5"></i>
-                    </div>
+                    <div class="meta-icon"><i data-lucide="hard-drive" class="w-5 h-5"></i></div>
                     <div class="meta-content">
                         <span class="meta-label">文件大小</span>
                         <span class="meta-value">{{ video.size_formatted }}</span>
                     </div>
                 </div>
+                {% if video.codec %}
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="video" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">视频编码</span>
+                        <span class="meta-value">{{ video.codec }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if video.audio_codec %}
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="volume-2" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">音频编码</span>
+                        <span class="meta-value">{{ video.audio_codec }}{% if video.audio_channels %} ({{ video.audio_channels }}ch){% endif %}</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
+
+            {% if subtitles %}
+            <div class="subtitle-selector">
+                <h3 class="section-label"><i data-lucide="subtitles" class="w-4 h-4"></i> 字幕</h3>
+                <div class="subtitle-list" id="subtitle-list">
+                    <button class="subtitle-option active" data-src="" onclick="disableSubtitles()">无字幕</button>
+                    {% for sub in subtitles %}
+                    <button class="subtitle-option" data-src="/subtitle/{{ sub.filename|urlencode }}" onclick="enableSubtitle(this, '{{ sub.label }}')">{{ sub.label }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if screenshots %}
+            <div class="screenshot-gallery">
+                <h3 class="section-label"><i data-lucide="camera" class="w-4 h-4"></i> 截图 ({{ screenshots|length }})</h3>
+                <div class="screenshot-scroll">
+                    {% for shot in screenshots %}
+                    <img src="{{ shot.path }}" alt="截图" class="screenshot-thumb" onclick="openScreenshot('{{ shot.path }}')" loading="lazy">
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <div class="thumbnail-section">
                 <div class="section-header">
-                    <h3 class="section-label">
-                        <i data-lucide="image" class="w-4 h-4"></i>
-                        视频封面
-                    </h3>
+                    <h3 class="section-label"><i data-lucide="image" class="w-4 h-4"></i> 视频封面</h3>
                     <button class="refresh-thumb-btn" onclick="refreshThumbnail()">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         刷新封面
@@ -122,10 +193,7 @@
             </div>
 
             <div class="tags-section">
-                <h3 class="section-label">
-                    <i data-lucide="tag" class="w-4 h-4"></i>
-                    标签
-                </h3>
+                <h3 class="section-label"><i data-lucide="tag" class="w-4 h-4"></i> 标签</h3>
                 <div class="tags-container" id="tags-container">
                     {% for tag in tags %}
                     <span class="tag-pill" style="background: {{ tag.color }}20; color: {{ tag.color }}; border-color: {{ tag.color }}40;">
@@ -136,7 +204,6 @@
                     </span>
                     {% endfor %}
                 </div>
-
                 <div class="tag-manager">
                     <input type="text" id="new-tag-input" placeholder="添加新标签..."
                            onkeydown="handlePlayerTagInput(event)">
@@ -149,6 +216,22 @@
         </div>
     </div>
 </div>
+
+<div class="toast-container" id="toast-container"></div>
+
+{% if video.progress and video.duration %}
+<div class="resume-bar" id="resume-bar">
+    <div class="resume-info">
+        <span>已观看至 {{ (video.progress / video.duration * 100)|round }}%</span>
+        <button onclick="resumePlayback()">
+            <i data-lucide="play" class="w-4 h-4"></i> 继续播放
+        </button>
+        <button onclick="dismissResume()">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -157,31 +240,214 @@
     window.currentTags = {{ tags | tojson }};
     initVideoPlayer();
 
+    // Resume bar
+    function resumePlayback() {
+        const video = document.getElementById('video-player');
+        video.currentTime = {{ video.progress or 0 }};
+        video.play();
+        document.getElementById('resume-bar')?.remove();
+    }
+    function dismissResume() {
+        document.getElementById('resume-bar')?.remove();
+    }
+
+    // Theater mode
+    function toggleTheater() {
+        document.body.classList.toggle('theater-mode');
+        const icon = document.querySelector('#theater-btn i');
+        const isActive = document.body.classList.contains('theater-mode');
+        icon?.setAttribute('data-lucide', isActive ? 'film' : 'film');
+        localStorage.setItem('cinevault-theater', isActive ? '1' : '0');
+        if (window.lucide) lucide.createIcons();
+    }
+    document.getElementById('theater-btn')?.addEventListener('click', toggleTheater);
+    if (localStorage.getItem('cinevault-theater') === '1') {
+        document.body.classList.add('theater-mode');
+    }
+
+    // PiP
+    document.getElementById('pip-btn')?.addEventListener('click', async () => {
+        const video = document.getElementById('video-player');
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled) {
+                await video.requestPictureInPicture();
+            }
+        } catch(e) {}
+    });
+
+    // Skip buttons
+    document.getElementById('skip-back-btn')?.addEventListener('click', () => {
+        const v = document.getElementById('video-player');
+        v.currentTime = Math.max(0, v.currentTime - 10);
+    });
+    document.getElementById('skip-fwd-btn')?.addEventListener('click', () => {
+        const v = document.getElementById('video-player');
+        v.currentTime = Math.min(v.duration, v.currentTime + 10);
+    });
+
+    // Favorite
+    async function toggleFavorite() {
+        const video = document.getElementById('video-player');
+        const btn = document.getElementById('favorite-btn');
+        const isFav = btn.classList.contains('active');
+        const newState = !isFav;
+
+        try {
+            const res = await fetch('/api/video/' + encodeURIComponent(video.dataset.filename) + '/favorite', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({is_favorite: newState})
+            });
+            if ((await res.json()).success) {
+                btn.classList.toggle('active', newState);
+                btn.querySelector('span').textContent = newState ? '已收藏' : '收藏';
+                showToast(newState ? '已收藏' : '已取消收藏', 'success');
+            }
+        } catch(e) { showToast('操作失败', 'error'); }
+    }
+
+    // Rating
+    document.querySelectorAll('#rating-stars .star').forEach(star => {
+        star.addEventListener('click', async function() {
+            const val = parseInt(this.dataset.val);
+            const video = document.getElementById('video-player');
+            const currentRating = parseInt(document.getElementById('rating-stars').dataset.rating);
+            const newVal = val === currentRating ? 0 : val;
+            try {
+                const res = await fetch('/api/video/' + encodeURIComponent(video.dataset.filename) + '/rating', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({rating: newVal})
+                });
+                if ((await res.json()).success) {
+                    document.getElementById('rating-stars').dataset.rating = newVal;
+                    document.querySelectorAll('#rating-stars .star').forEach(s => {
+                        s.classList.toggle('selected', parseInt(s.dataset.val) <= newVal);
+                    });
+                }
+            } catch(e) { showToast('操作失败', 'error'); }
+        });
+    });
+
+    // Share
+    function openShareModal() {
+        const overlay = document.createElement('div');
+        overlay.className = 'share-modal-overlay';
+        overlay.innerHTML = `
+            <div class="share-modal">
+                <h3>分享视频</h3>
+                <div class="share-expiry">
+                    <span style="font-size:0.85rem;color:var(--text-secondary)">有效期:</span>
+                    <select id="share-hours">
+                        <option value="1">1 小时</option>
+                        <option value="24" selected>24 小时</option>
+                        <option value="72">3 天</option>
+                        <option value="168">7 天</option>
+                    </select>
+                </div>
+                <div class="share-url-box">
+                    <input type="text" id="share-url" readonly placeholder="点击生成链接...">
+                    <button onclick="generateShareLink()">生成</button>
+                </div>
+                <div class="share-url-box">
+                    <input type="text" id="share-url-input" readonly>
+                    <button onclick="copyShareLink()"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                </div>
+                <button class="share-close" onclick="this.closest('.share-modal-overlay').remove()">关闭</button>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async function generateShareLink() {
+        const video = document.getElementById('video-player');
+        const hours = document.getElementById('share-hours').value;
+        try {
+            const res = await fetch('/api/video/' + encodeURIComponent(video.dataset.filename) + '/share', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({hours: parseInt(hours)})
+            });
+            const data = await res.json();
+            if (data.success) {
+                const url = window.location.origin + data.url;
+                document.getElementById('share-url').value = url;
+                document.getElementById('share-url-input').value = url;
+                showToast('分享链接已生成', 'success');
+            }
+        } catch(e) { showToast('生成失败', 'error'); }
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('share-url-input');
+        input.select();
+        document.execCommand('copy') || navigator.clipboard.writeText(input.value);
+        showToast('链接已复制', 'success');
+    }
+
+    // Subtitles
+    function enableSubtitle(btn, label) {
+        document.querySelectorAll('.subtitle-option').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const video = document.getElementById('video-player');
+        // Remove existing tracks
+        Array.from(video.textTracks).forEach(t => t.mode = 'disabled');
+        // Add new track
+        const src = btn.dataset.src;
+        let track = video.querySelector('track[src="' + src + '"]');
+        if (track) {
+            track.track.mode = 'showing';
+        } else {
+            track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.src = src;
+            track.label = label;
+            track.default = true;
+            video.appendChild(track);
+            track.addEventListener('load', () => { track.track.mode = 'showing'; });
+        }
+    }
+
+    function disableSubtitles() {
+        document.querySelectorAll('.subtitle-option').forEach(b => b.classList.remove('active'));
+        document.querySelector('.subtitle-option[data-src=""]')?.classList.add('active');
+        Array.from(document.getElementById('video-player').textTracks).forEach(t => t.mode = 'disabled');
+    }
+
+    // Screenshot lightbox
+    function openScreenshot(path) {
+        const lb = document.createElement('div');
+        lb.className = 'screenshot-lightbox';
+        lb.innerHTML = '<img src="' + path + '" alt="截图">';
+        lb.addEventListener('click', () => lb.remove());
+        document.body.appendChild(lb);
+    }
+
+    // Thumbnail refresh
     async function refreshThumbnail() {
         const filename = document.querySelector('#video-player').dataset.filename;
         const btn = document.querySelector('.refresh-thumb-btn');
         const img = document.querySelector('#thumbnail-preview');
-
         btn.disabled = true;
+        const origHTML = btn.innerHTML;
         btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 刷新中...';
-        lucide.createIcons();
-
+        if (window.lucide) lucide.createIcons();
         try {
-            const res = await fetch(`/api/video/${encodeURIComponent(filename)}/refresh-thumb`, { method: 'POST' });
+            const res = await fetch('/api/video/' + encodeURIComponent(filename) + '/refresh-thumb', { method: 'POST' });
             const data = await res.json();
-
             if (data.success) {
-                img.src = `/thumbnail/${encodeURIComponent(filename)}?t=${Date.now()}`;
+                img.src = '/thumbnail/' + encodeURIComponent(filename) + '?t=' + Date.now();
+                showToast('封面已刷新', 'success');
             } else {
-                alert('封面刷新失败');
+                showToast('封面刷新失败', 'error');
             }
-        } catch (err) {
-            alert('请求失败');
-        }
-
+        } catch (err) { showToast('请求失败', 'error'); }
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新封面';
-        lucide.createIcons();
+        btn.innerHTML = origHTML;
+        if (window.lucide) lucide.createIcons();
     }
 </script>
 {% endblock %}

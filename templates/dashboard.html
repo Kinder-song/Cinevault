@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 - CineVault{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <h1 class="dashboard-title">仪表盘</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i data-lucide="film" class="w-6 h-6"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ stats.total_videos }}</div>
+                <div class="stat-label">视频总数</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i data-lucide="clock" class="w-6 h-6"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ stats.total_duration_formatted or '0:00:00' }}</div>
+                <div class="stat-label">总时长</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i data-lucide="hard-drive" class="w-6 h-6"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ stats.total_size_formatted or '0 B' }}</div>
+                <div class="stat-label">总大小</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i data-lucide="heart" class="w-6 h-6"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ stats.favorites }}</div>
+                <div class="stat-label">收藏视频</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i data-lucide="eye" class="w-6 h-6"></i></div>
+            <div class="stat-body">
+                <div class="stat-value">{{ stats.watched_duration_formatted or '0:00' }}</div>
+                <div class="stat-label">已观看时长</div>
+                {% if stats.total_duration %}
+                <div class="stat-sub">
+                    {% set pct = (stats.watched_duration / stats.total_duration * 100)|round if stats.total_duration > 0 else 0 %}
+                    完成 {{ pct }}%
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-section">
+        {% if stats.tag_stats %}
+        <div class="chart-card">
+            <div class="chart-title">标签分布</div>
+            {% set max_tag = stats.tag_stats[0].cnt if stats.tag_stats else 1 %}
+            {% for tag in stats.tag_stats[:10] %}
+            <div class="chart-bar">
+                <span class="chart-bar-label" style="color:{{ tag.color }}">#{{ tag.name }}</span>
+                <div class="chart-bar-track">
+                    <div class="chart-bar-fill" style="width:{{ (tag.cnt / max_tag * 100)|round }}%"></div>
+                </div>
+                <span class="chart-bar-count">{{ tag.cnt }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if stats.codec_stats %}
+        <div class="chart-card">
+            <div class="chart-title">编码格式分布</div>
+            {% set max_codec = stats.codec_stats[0].cnt if stats.codec_stats else 1 %}
+            {% for c in stats.codec_stats %}
+            <div class="chart-bar">
+                <span class="chart-bar-label">{{ c.codec }}</span>
+                <div class="chart-bar-track">
+                    <div class="chart-bar-fill" style="width:{{ (c.cnt / max_codec * 100)|round }}%"></div>
+                </div>
+                <span class="chart-bar-count">{{ c.cnt }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if stats.res_stats %}
+        <div class="chart-card">
+            <div class="chart-title">分辨率分布</div>
+            {% set max_res = [stats.res_stats.uhd or 0, stats.res_stats.fhd or 0, stats.res_stats.hd or 0, stats.res_stats.sd or 0, 1] | max %}
+            <div class="chart-bar">
+                <span class="chart-bar-label">4K+</span>
+                <div class="chart-bar-track"><div class="chart-bar-fill" style="width:{{ ((stats.res_stats.uhd or 0) / max_res * 100)|round }}%;background:linear-gradient(90deg,#7b9cff,#a78bfa)"></div></div>
+                <span class="chart-bar-count">{{ stats.res_stats.uhd or 0 }}</span>
+            </div>
+            <div class="chart-bar">
+                <span class="chart-bar-label">1080p</span>
+                <div class="chart-bar-track"><div class="chart-bar-fill" style="width:{{ ((stats.res_stats.fhd or 0) / max_res * 100)|round }}%"></div></div>
+                <span class="chart-bar-count">{{ stats.res_stats.fhd or 0 }}</span>
+            </div>
+            <div class="chart-bar">
+                <span class="chart-bar-label">720p</span>
+                <div class="chart-bar-track"><div class="chart-bar-fill" style="width:{{ ((stats.res_stats.hd or 0) / max_res * 100)|round }}%"></div></div>
+                <span class="chart-bar-count">{{ stats.res_stats.hd or 0 }}</span>
+            </div>
+            <div class="chart-bar">
+                <span class="chart-bar-label">SD</span>
+                <div class="chart-bar-track"><div class="chart-bar-fill" style="width:{{ ((stats.res_stats.sd or 0) / max_res * 100)|round }}%"></div></div>
+                <span class="chart-bar-count">{{ stats.res_stats.sd or 0 }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/main.js"></script>
+<script>
+    if (window.lucide) lucide.createIcons();
+</script>
+{% endblock %}
