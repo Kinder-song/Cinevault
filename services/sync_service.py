@@ -42,10 +42,10 @@ def sync_video_to_db(filename: str, video_path_full: str) -> Optional[Dict[str, 
 
             if row:
                 # Check if sync is needed (compare size and mtime)
-                db_size = row.get('size_bytes')
-                db_mtime = row.get('updated_at').timestamp() if row.get('updated_at') else 0
+                db_size = row.get('file_size')
+                db_mtime = row.get('file_mtime', 0)
 
-                if db_size == file_size and abs(db_mtime - file_mtime) < 1:
+                if db_size == file_size and db_mtime == int(file_mtime):
                     sync_logger.debug(f"Video unchanged, skipping: {filename}")
                     return video_dict_from_row(row)
 
@@ -71,17 +71,16 @@ def sync_video_to_db(filename: str, video_path_full: str) -> Optional[Dict[str, 
                         """
                         UPDATE videos SET
                             title = %s,
-                            filepath = %s,
-                            size_bytes = %s,
+                            file_size = %s,
                             duration = %s,
                             width = %s,
                             height = %s,
                             codec = %s,
                             bitrate = %s,
-                            framerate = %s
+                            fps = %s
                         WHERE filename = %s
                         """,
-                        (title, video_path_full, file_size, duration, width,
+                        (title, file_size, duration, width,
                          height, codec, bitrate, fps, filename)
                     )
                 else:
@@ -89,11 +88,11 @@ def sync_video_to_db(filename: str, video_path_full: str) -> Optional[Dict[str, 
                     cursor.execute(
                         """
                         INSERT INTO videos (
-                            user_id, title, filename, filepath, size_bytes,
-                            duration, width, height, codec, bitrate, framerate
-                        ) VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            filename, title, file_size,
+                            duration, width, height, codec, bitrate, fps
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """,
-                        (title, filename, video_path_full, file_size, duration,
+                        (filename, title, file_size, duration,
                          width, height, codec, bitrate, fps)
                     )
 
@@ -116,13 +115,12 @@ def get_all_videos_from_db() -> List[Dict[str, Any]]:
     """Get all videos from database.
 
     Returns:
-        List of all video rows as dicts.
+        List of all video rows as dicts (raw, not converted).
     """
     try:
         with with_db_cursor() as cursor:
             cursor.execute("SELECT * FROM videos ORDER BY filename")
-            rows = cursor.fetchall()
-            return [video_dict_from_row(row) for row in rows]
+            return cursor.fetchall()
     except Exception as e:
         sync_logger.error(f"Error fetching all videos from DB: {e}")
         return []
@@ -153,7 +151,7 @@ def sync_and_get_videos(video_path: str) -> List[Dict[str, Any]]:
     existing_records: Dict[str, Dict[str, Any]] = {}
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("SELECT filename, size_bytes, updated_at FROM videos")
+            cursor.execute("SELECT filename, file_size, file_mtime FROM videos")
             for row in cursor.fetchall():
                 existing_records[row['filename']] = row
     except Exception as e:
@@ -168,11 +166,11 @@ def sync_and_get_videos(video_path: str) -> List[Dict[str, Any]]:
         needs_sync = True
         if filename in existing_records:
             db_record = existing_records[filename]
-            db_size = db_record.get('size_bytes')
-            db_mtime = db_record.get('updated_at').timestamp() if db_record.get('updated_at') else 0
+            db_size = db_record.get('file_size')
+            db_mtime = db_record.get('file_mtime', 0)
 
             # Skip if file size and mtime match
-            if db_size == file_size and abs(db_mtime - file_mtime) < 1:
+            if db_size == file_size and db_mtime == int(file_mtime):
                 needs_sync = False
                 sync_logger.debug(f"Skipping unchanged file: {filename}")
 

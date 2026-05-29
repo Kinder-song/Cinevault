@@ -137,7 +137,8 @@ def video_page(filename=None):
     if not row:
         return "Video not found", 404
 
-    video = video_dict_from_row(row)
+    # sync_video_to_db already returns a processed video dict
+    video = row
 
     # Get subtitles
     subtitles = scan_subtitles(filename, video_path)

@@ -1,24 +1,24 @@
 """User profile routes for CineVault."""
 
 import bcrypt
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from services.db_service import get_db_connection, with_db_cursor
 from utils.security import validate_video_path
 from utils.logger import video_logger
 from routes.auth import login_required
 
-user_bp = Blueprint('user', __name__, url_prefix='/api/user')
+user_bp = Blueprint('user', __name__)
 
 
-@user_bp.route('/profile', methods=['GET'])
+@user_bp.route('/api/user/profile', methods=['GET'])
 @login_required
 def get_profile():
     """Get user profile."""
     try:
         with with_db_cursor() as cursor:
             cursor.execute("""
-                SELECT id, username, email, video_path, created_at
+                SELECT id, username, video_path
                 FROM users WHERE id = %s
             """, (session['user_id'],))
             user = cursor.fetchone()
@@ -26,8 +26,6 @@ def get_profile():
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
-        # Remove sensitive fields
-        user.pop('password_hash', None)
         return jsonify(user)
 
     except Exception as e:
@@ -35,7 +33,31 @@ def get_profile():
         return jsonify({'error': str(e)}), 500
 
 
-@user_bp.route('/profile', methods=['POST'])
+# Settings page route (no prefix, so it's at /settings)
+@user_bp.route('/settings', methods=['GET'])
+@user_bp.route('/settings/', methods=['GET'])
+@login_required
+def settings_page():
+    """Render settings page."""
+    try:
+        with with_db_cursor() as cursor:
+            cursor.execute("""
+                SELECT id, username, video_path
+                FROM users WHERE id = %s
+            """, (session['user_id'],))
+            user = cursor.fetchone()
+
+        if not user:
+            return redirect('/login')
+
+        return render_template('settings.html', user=user)
+
+    except Exception as e:
+        video_logger.error(f"Error loading settings page: {e}")
+        return redirect('/')
+
+
+@user_bp.route('/api/user/profile', methods=['POST'])
 @login_required
 def update_profile():
     """Update user profile (username, password, video_path)."""

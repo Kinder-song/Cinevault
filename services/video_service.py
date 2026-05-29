@@ -62,30 +62,25 @@ def extract_metadata(filepath: str) -> Dict[str, Any]:
             h, m, s, cs = duration_match.groups()
             result['duration'] = int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100
 
-        # Parse Video stream info
+        # Parse Video stream info - resolution appears before [SAR in stream line
         video_stream_match = re.search(
-            r'Stream.*Video:\s*(\w+).*?(\d+)x(\d+).*?(\d+(?:\.\d+)?)\s*fps',
+            r'(\d+)x(\d+)\s+\[SAR',
             stderr
         )
         if video_stream_match:
-            result['codec'] = video_stream_match.group(1)
-            result['width'] = int(video_stream_match.group(2))
-            result['height'] = int(video_stream_match.group(3))
-            result['fps'] = float(video_stream_match.group(4))
-        else:
-            # Try simpler pattern
-            stream_match = re.search(r'Stream.*Video:\s*(\w+)', stderr)
-            if stream_match:
-                result['codec'] = stream_match.group(1)
-            dim_match = re.search(r'(\d{2,5})x(\d{2,5})', stderr)
-            if dim_match:
-                result['width'] = int(dim_match.group(1))
-                result['height'] = int(dim_match.group(2))
-            fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', stderr)
-            if fps_match:
-                result['fps'] = float(fps_match.group(1))
+            result['width'] = int(video_stream_match.group(1))
+            result['height'] = int(video_stream_match.group(2))
 
-        # Parse bitrate
+        # Parse codec and fps from video stream
+        codec_match = re.search(r'Video:\s*(\w+)', stderr)
+        if codec_match:
+            result['codec'] = codec_match.group(1)
+
+        fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', stderr)
+        if fps_match:
+            result['fps'] = float(fps_match.group(1))
+
+        # Parse bitrate from "bitrate: 87643 kb/s"
         bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', stderr)
         if bitrate_match:
             result['bitrate'] = int(bitrate_match.group(1))
@@ -256,9 +251,10 @@ def video_dict_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
         'title': row.get('title'),
         'filename': row.get('filename'),
         'filepath': row.get('filepath'),
-        'filesize': format_filesize(row.get('size_bytes') or 0),
-        'size_bytes': row.get('size_bytes'),
+        'filesize': format_filesize(row.get('file_size') or 0),
+        'size_bytes': row.get('file_size'),
         'duration': format_duration(row.get('duration')),
+        'duration_formatted': format_duration(row.get('duration')),
         'duration_raw': row.get('duration'),
         'width': row.get('width'),
         'height': row.get('height'),
@@ -266,10 +262,16 @@ def video_dict_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
         'codec': row.get('codec'),
         'bitrate': format_bitrate(row.get('bitrate')),
         'bitrate_raw': row.get('bitrate'),
-        'fps': format_fps(row.get('framerate')),
-        'fps_raw': row.get('framerate'),
-        'favorite': row.get('favorite', False),
-        'watched_duration': format_duration(row.get('watched_duration')),
-        'last_watched': row.get('last_watched'),
+        'fps': format_fps(row.get('fps')),
+        'fps_raw': row.get('fps'),
+        'thumbnail': row.get('thumbnail_path'),  # thumbnail path for template
+        'favorite': row.get('is_favorite', False),
+        'is_favorite': row.get('is_favorite', False),
+        'rating': row.get('rating', 0),
+        'progress': row.get('progress'),
+        'watched_duration': format_duration(row.get('progress')),
+        'last_watched': None,
         'created_at': row.get('created_at'),
+        'created': row.get('created_at'),  # alias for template compatibility
+        'size': row.get('file_size') or 0,  # alias for template compatibility
     }

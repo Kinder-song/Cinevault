@@ -61,7 +61,6 @@ def login():
 
     if user and bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         login_tracker.record_success(client_ip)
-        session.regenerate_id()  # Prevent session fixation
         session['user_id'] = user['id']
         session['username'] = username
         auth_logger.info(f"Successful login for user: {username}")

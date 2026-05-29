@@ -4,6 +4,7 @@ import os
 import logging
 
 from flask import Flask, jsonify, render_template, request
+from flask_session import Session
 
 from config import Config
 from services.db_service import init_database, init_db_pool
@@ -18,6 +19,12 @@ logger = logging.getLogger(__name__)
 # Create Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Configure server-side sessions
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = "./sessions"
+app.config["SESSION_PERMANENT"] = False
+Session(app)
 
 # Ensure required directories exist
 for d in ["thumbnails", "sessions", "static/css", "static/js", "cache"]:

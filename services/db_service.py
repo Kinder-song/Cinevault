@@ -50,6 +50,10 @@ def get_db_connection():
     return db_pool.get_connection()
 
 
+# Public alias for initialization
+init_db_pool = _init_db_pool
+
+
 @contextmanager
 def with_db_cursor(dictionary: bool = True):
     """Context manager for database cursor with automatic commit/rollback.
@@ -179,8 +183,8 @@ def init_database() -> None:
         with with_db_cursor() as cursor:
             cursor.execute(
                 """
-                INSERT IGNORE INTO users (username, email, password_hash)
-                VALUES ('admin', 'admin@cinevault.local', %s)
+                INSERT IGNORE INTO users (username, password_hash)
+                VALUES ('admin', %s)
                 """,
                 (admin_password,),
             )
@@ -215,9 +219,9 @@ def get_dashboard_stats() -> Dict[str, Any]:
                 SELECT
                     COUNT(*) as total_videos,
                     COALESCE(SUM(duration), 0) as total_duration,
-                    COALESCE(SUM(size_bytes), 0) as total_size,
-                    COALESCE(SUM(watched_duration), 0) as watched_duration,
-                    COALESCE(SUM(CASE WHEN favorite = TRUE THEN 1 ELSE 0 END), 0) as favorites
+                    COALESCE(SUM(file_size), 0) as total_size,
+                    COALESCE(SUM(progress), 0) as watched_duration,
+                    COALESCE(SUM(CASE WHEN is_favorite = TRUE THEN 1 ELSE 0 END), 0) as favorites
                 FROM videos
                 """
             )

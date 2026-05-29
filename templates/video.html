@@ -4,10 +4,10 @@
 {% block content %}
 <div class="toast-container" id="toast-container"></div>
 
-{% if video.progress and video.duration %}
+{% if video.progress and video.duration_raw %}
 <div class="resume-bar" id="resume-bar">
     <div class="resume-info">
-        <span>已观看至 {{ (video.progress / video.duration * 100)|round }}%</span>
+        <span>已观看至 {{ (video.progress / video.duration_raw * 100)|round }}%</span>
         <button onclick="resumePlayback()">
             <i data-lucide="play" class="w-4 h-4"></i> 继续播放
         </button>
@@ -24,7 +24,7 @@
             <div class="video-wrapper">
                 <video id="video-player" class="video-element" playsinline preload="auto" controlslist="nodownload"
                        data-filename="{{ video.filename }}"
-                       data-duration="{{ video.duration or 0 }}"
+                       data-duration="{{ video.duration_raw or 0 }}"
                        data-progress="{{ video.progress or 0 }}">
                     {% set ext = video.filename.split('.')[-1].lower() %}
                     {% set mime_map = {'mp4': 'video/mp4', 'mkv': 'video/x-matroska', 'webm': 'video/webm', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo', 'm4v': 'video/x-m4v'} %}
@@ -247,7 +247,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/main.js"></script>
+<script type="module" src="/static/js/main.js"></script>
 <script>
     window.currentTags = {{ tags | tojson }};
     initVideoPlayer();
