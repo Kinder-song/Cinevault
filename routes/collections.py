@@ -1,12 +1,15 @@
 """Collections routes for CineVault."""
 
+import os
 from flask import Blueprint, jsonify, request, session
 import mysql.connector
 
 from services.db_service import get_db_connection, with_db_cursor
 from services.video_service import video_dict_from_row
 from utils.logger import video_logger
+from utils.security import validate_video_path
 from routes.auth import login_required
+from routes.videos import get_user_video_path
 
 collections_bp = Blueprint('collections', __name__, url_prefix='/api/collections')
 
@@ -98,6 +101,13 @@ def add_video_to_collection(col_id):
                            (col_id, session['user_id']))
             if not cursor.fetchone():
                 return jsonify({'error': 'Collection not found'}), 404
+
+            # Verify video exists in user's video_path
+            from utils.security import validate_video_path
+            video_path = get_user_video_path(session['user_id'])
+            fp = validate_video_path(video_path, filename)
+            if not fp or not os.path.exists(fp):
+                return jsonify({'error': 'Video not found'}), 404
 
             # Get video id
             cursor.execute("SELECT id FROM videos WHERE filename = %s", (filename,))
