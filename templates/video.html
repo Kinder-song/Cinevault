@@ -2,6 +2,22 @@
 {% block title %}{{ video.title }} - CineVault{% endblock %}
 
 {% block content %}
+<div class="toast-container" id="toast-container"></div>
+
+{% if video.progress and video.duration %}
+<div class="resume-bar" id="resume-bar">
+    <div class="resume-info">
+        <span>已观看至 {{ (video.progress / video.duration * 100)|round }}%</span>
+        <button onclick="resumePlayback()">
+            <i data-lucide="play" class="w-4 h-4"></i> 继续播放
+        </button>
+        <button onclick="dismissResume()">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+</div>
+{% endif %}
+
 <div class="player-page">
     <div class="player-layout">
         <div class="player-section">
@@ -77,6 +93,15 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="playlist-section" id="playlist-section">
+                <div class="playlist-header">
+                    <h3 class="playlist-title"><i data-lucide="list" class="w-4 h-4"></i> 播放列表</h3>
+                    <span class="playlist-count" id="playlist-count"></span>
+                </div>
+                <div class="playlist-scroll" id="playlist-scroll">
                 </div>
             </div>
         </div>
@@ -217,21 +242,8 @@
     </div>
 </div>
 
-<div class="toast-container" id="toast-container"></div>
-
-{% if video.progress and video.duration %}
-<div class="resume-bar" id="resume-bar">
-    <div class="resume-info">
-        <span>已观看至 {{ (video.progress / video.duration * 100)|round }}%</span>
-        <button onclick="resumePlayback()">
-            <i data-lucide="play" class="w-4 h-4"></i> 继续播放
-        </button>
-        <button onclick="dismissResume()">
-            <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-    </div>
 </div>
-{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -239,6 +251,218 @@
 <script>
     window.currentTags = {{ tags | tojson }};
     initVideoPlayer();
+    loadPlaylist();
+
+    // Load playlist
+    async function loadPlaylist() {
+        try {
+            const res = await fetch('/api/videos');
+            const data = await res.json();
+            const videos = data.videos || [];
+            const scroll = document.getElementById('playlist-scroll');
+            const count = document.getElementById('playlist-count');
+            const currentFilename = document.querySelector('#video-player').dataset.filename;
+
+            if (!scroll || !videos.length) return;
+
+            count.textContent = videos.length + ' 个视频';
+            scroll.innerHTML = '';
+
+            videos.forEach(v => {
+                const item = document.createElement('div');
+                item.className = 'playlist-item' + (v.filename === currentFilename ? ' active' : '');
+                if (!v.thumbnail) item.classList.add('no-thumb');
+
+                item.innerHTML = `
+                    <div class="playlist-item-thumb">
+                        ${v.thumbnail
+                            ? `<img src="/thumbnail/${encodeURIComponent(v.filename)}" alt="${v.title}" loading="lazy">`
+                            : `<i data-lucide="play" class="w-6 h-6"></i>`
+                        }
+                        ${v.duration_formatted ? `<span class="duration-badge">${v.duration_formatted}</span>` : ''}
+                    </div>
+                    <div class="playlist-item-info">
+                        <p class="playlist-item-title" title="${v.title}">${v.title}</p>
+                    </div>
+                `;
+
+                item.addEventListener('click', () => {
+                    if (v.filename !== currentFilename) {
+                        switchVideo(v.filename, v.title);
+                    }
+                });
+                item.dataset.filename = v.filename;
+
+                scroll.appendChild(item);
+            });
+
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            console.error('Failed to load playlist:', err);
+        }
+    }
+
+    // Switch video without page reload
+    async function switchVideo(filename, title) {
+        const video = document.getElementById('video-player');
+        const videoWrapper = video.closest('.video-wrapper');
+        const loading = document.createElement('div');
+        loading.className = 'video-loading';
+        loading.innerHTML = '<div class="loading-spinner"></div><span>加载中...</span>';
+        videoWrapper.style.position = 'relative';
+        videoWrapper.appendChild(loading);
+
+        try {
+            const res = await fetch('/api/video/' + encodeURIComponent(filename) + '/data');
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Failed to load video data');
+            }
+
+            const videoData = data.video;
+
+            // Update video source
+            video.pause();
+            video.src = '/stream/' + encodeURIComponent(filename);
+            video.load();
+            video.dataset.filename = filename;
+            video.dataset.duration = videoData.duration || 0;
+            video.dataset.progress = videoData.progress || 0;
+
+            // Update title
+            document.querySelector('.video-title').textContent = title;
+
+            // Update meta grid
+            const metaGrid = document.querySelector('.video-meta-grid');
+            metaGrid.innerHTML = `
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="scan" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">分辨率</span>
+                        <span class="meta-value">${videoData.width && videoData.height ? videoData.width + ' × ' + videoData.height : '--'}</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="gauge" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">帧率</span>
+                        <span class="meta-value">${videoData.fps ? videoData.fps + ' fps' : '--'}</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="activity" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">码率</span>
+                        <span class="meta-value">${videoData.bitrate || '--'}</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="hard-drive" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">文件大小</span>
+                        <span class="meta-value">${videoData.size_formatted || '--'}</span>
+                    </div>
+                </div>
+                ${videoData.codec ? `
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="video" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">视频编码</span>
+                        <span class="meta-value">${videoData.codec}</span>
+                    </div>
+                </div>
+                ` : ''}
+                ${videoData.audio_codec ? `
+                <div class="meta-item">
+                    <div class="meta-icon"><i data-lucide="volume-2" class="w-5 h-5"></i></div>
+                    <div class="meta-content">
+                        <span class="meta-label">音频编码</span>
+                        <span class="meta-value">${videoData.audio_codec}${videoData.audio_channels ? ' (' + videoData.audio_channels + 'ch)' : ''}</span>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+
+            // Update subtitle selector
+            const subtitleSection = document.querySelector('.subtitle-selector');
+            if (subtitleSection) subtitleSection.remove();
+            if (data.subtitles && data.subtitles.length > 0) {
+                const metaContainer = document.querySelector('.video-meta-grid').parentNode;
+                const subDiv = document.createElement('div');
+                subDiv.className = 'subtitle-selector';
+                subDiv.innerHTML = `
+                    <h3 class="section-label"><i data-lucide="subtitles" class="w-4 h-4"></i> 字幕</h3>
+                    <div class="subtitle-list" id="subtitle-list">
+                        <button class="subtitle-option active" data-src="" onclick="disableSubtitles()">无字幕</button>
+                        ${data.subtitles.map(sub => `
+                            <button class="subtitle-option" data-src="/subtitle/${encodeURIComponent(sub.filename)}" onclick="enableSubtitle(this, '${sub.label}')">${sub.label}</button>
+                        `).join('')}
+                    </div>
+                `;
+                metaContainer.insertBefore(subDiv, document.querySelector('.screenshot-gallery') || document.querySelector('.thumbnail-section'));
+            }
+
+            // Update thumbnail
+            document.getElementById('thumbnail-preview').src = '/thumbnail/' + encodeURIComponent(filename) + '?t=' + Date.now();
+
+            // Update tags
+            window.currentTags = data.tags || [];
+            renderPlayerTags(window.currentTags);
+
+            // Update favorite button
+            const favBtn = document.getElementById('favorite-btn');
+            favBtn.classList.toggle('active', videoData.is_favorite);
+            favBtn.querySelector('span').textContent = videoData.is_favorite ? '已收藏' : '收藏';
+
+            // Update rating
+            document.getElementById('rating-stars').dataset.rating = videoData.rating || 0;
+            document.querySelectorAll('#rating-stars .star').forEach(s => {
+                s.classList.toggle('selected', parseInt(s.dataset.val) <= (videoData.rating || 0));
+            });
+
+            // Update resume bar
+            const resumeBar = document.getElementById('resume-bar');
+            if (resumeBar) resumeBar.remove();
+            if (videoData.progress && videoData.duration && videoData.progress > 0) {
+                const pct = Math.round((videoData.progress / videoData.duration) * 100);
+                const bar = document.createElement('div');
+                bar.className = 'resume-bar';
+                bar.id = 'resume-bar';
+                bar.innerHTML = `
+                    <div class="resume-info">
+                        <span>已观看至 ${pct}%</span>
+                        <button onclick="resumePlayback()">
+                            <i data-lucide="play" class="w-4 h-4"></i> 继续播放
+                        </button>
+                        <button onclick="dismissResume()">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                document.body.insertBefore(bar, document.querySelector('.player-page'));
+            }
+
+            // Update playlist active state
+            document.querySelectorAll('.playlist-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const currentItem = document.querySelector(`.playlist-item[data-filename="${filename}"]`) ||
+                                 Array.from(document.querySelectorAll('.playlist-item')).find(item => item.querySelector('.playlist-item-title')?.textContent === title);
+            if (currentItem) currentItem.classList.add('active');
+
+            // Reinit icons
+            if (window.lucide) lucide.createIcons();
+
+            // Show toast
+            showToast('已切换到: ' + title, 'success');
+
+        } catch (err) {
+            console.error('Failed to switch video:', err);
+            showToast('切换视频失败: ' + err.message, 'error');
+        } finally {
+            loading.remove();
+        }
+    }
 
     // Resume bar
     function resumePlayback() {
