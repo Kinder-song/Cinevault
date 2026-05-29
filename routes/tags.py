@@ -64,12 +64,13 @@ def remove_tag(filename, tag_name):
     """Remove a tag from a video."""
     try:
         with with_db_cursor() as cursor:
+            # Verify video belongs to current user before deleting tag
             cursor.execute("""
                 DELETE vt FROM video_tags vt
                 JOIN videos v ON v.id = vt.video_id
                 JOIN tags t ON t.id = vt.tag_id
-                WHERE v.filename = %s AND t.name = %s
-            """, (filename, tag_name))
+                WHERE v.filename = %s AND t.name = %s AND v.user_id = %s
+            """, (filename, tag_name, session['user_id']))
 
         return jsonify({'success': True})
 

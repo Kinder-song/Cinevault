@@ -129,12 +129,11 @@ def video_page(filename=None):
         return redirect('/')
 
     video_path = get_user_video_path(session['user_id'])
-    video_path_full = os.path.join(video_path, filename)
-
-    if not os.path.exists(video_path_full):
+    fp = validate_video_path(video_path, filename)
+    if not fp or not os.path.exists(fp):
         return "Video not found", 404
 
-    row = sync_video_to_db(filename, video_path_full)
+    row = sync_video_to_db(filename, fp)
     if not row:
         return "Video not found", 404
 
@@ -246,6 +245,7 @@ def stream_video(filename=None):
 
 @videos_bp.route('/thumbnail/')
 @videos_bp.route('/thumbnail/<path:filename>')
+@login_required
 def thumbnail(filename=None):
     """Serve video thumbnails, generating if needed."""
     if not filename:

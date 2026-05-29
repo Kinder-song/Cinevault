@@ -1,6 +1,7 @@
 """Collections routes for CineVault."""
 
 from flask import Blueprint, jsonify, request, session
+import mysql.connector
 
 from services.db_service import get_db_connection, with_db_cursor
 from services.video_service import video_dict_from_row
@@ -92,6 +93,12 @@ def add_video_to_collection(col_id):
 
     try:
         with with_db_cursor() as cursor:
+            # Verify collection belongs to current user
+            cursor.execute("SELECT id FROM collections WHERE id = %s AND user_id = %s",
+                           (col_id, session['user_id']))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Collection not found'}), 404
+
             # Get video id
             cursor.execute("SELECT id FROM videos WHERE filename = %s", (filename,))
             video = cursor.fetchone()
@@ -104,7 +111,7 @@ def add_video_to_collection(col_id):
                     "INSERT INTO collection_videos (collection_id, video_id) VALUES (%s, %s)",
                     (col_id, video['id'])
                 )
-            except Exception:
+            except mysql.connector.IntegrityError:
                 pass  # Already in collection
 
         return jsonify({'success': True})
@@ -120,6 +127,12 @@ def remove_video_from_collection(col_id, filename):
     """Remove a video from a collection."""
     try:
         with with_db_cursor() as cursor:
+            # Verify collection belongs to current user
+            cursor.execute("SELECT id FROM collections WHERE id = %s AND user_id = %s",
+                           (col_id, session['user_id']))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Collection not found'}), 404
+
             cursor.execute("""
                 DELETE cv FROM collection_videos cv
                 JOIN videos v ON v.id = cv.video_id

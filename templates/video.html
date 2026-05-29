@@ -273,16 +273,20 @@
                 item.className = 'playlist-item' + (v.filename === currentFilename ? ' active' : '');
                 if (!v.thumbnail) item.classList.add('no-thumb');
 
+                // Escape HTML to prevent XSS
+                const escapeHtml = (str) => str ? str.replace(/[&<>'"]/g, (c) => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[c])) : '';
+
                 item.innerHTML = `
                     <div class="playlist-item-thumb">
                         ${v.thumbnail
-                            ? `<img src="/thumbnail/${encodeURIComponent(v.filename)}" alt="${v.title}" loading="lazy">`
+                            ? `<img src="/thumbnail/${encodeURIComponent(v.filename)}" alt="${escapeHtml(v.title)}" loading="lazy">`
                             : `<i data-lucide="play" class="w-6 h-6"></i>`
                         }
-                        ${v.duration_formatted ? `<span class="duration-badge">${v.duration_formatted}</span>` : ''}
+                        ${v.duration_formatted ? `<span class="duration-badge">${escapeHtml(v.duration_formatted)}</span>` : ''}
                     </div>
                     <div class="playlist-item-info">
-                        <p class="playlist-item-title" title="${v.title}">${v.title}</p>
+                        <p class="playlist-item-title" title="${escapeHtml(v.title)}">${escapeHtml(v.title)}</p>
                     </div>
                 `;
 
@@ -390,12 +394,14 @@
                 const metaContainer = document.querySelector('.video-meta-grid').parentNode;
                 const subDiv = document.createElement('div');
                 subDiv.className = 'subtitle-selector';
+                const escapeAttr = (str) => str ? str.replace(/[&<>'"]/g, (c) => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[c])) : '';
                 subDiv.innerHTML = `
                     <h3 class="section-label"><i data-lucide="subtitles" class="w-4 h-4"></i> 字幕</h3>
                     <div class="subtitle-list" id="subtitle-list">
                         <button class="subtitle-option active" data-src="" onclick="disableSubtitles()">无字幕</button>
                         ${data.subtitles.map(sub => `
-                            <button class="subtitle-option" data-src="/subtitle/${encodeURIComponent(sub.filename)}" onclick="enableSubtitle(this, '${sub.label}')">${sub.label}</button>
+                            <button class="subtitle-option" data-src="/subtitle/${encodeURIComponent(sub.filename)}" onclick="enableSubtitle(this, '${escapeAttr(sub.label)}')">${escapeAttr(sub.label)}</button>
                         `).join('')}
                     </div>
                 `;
