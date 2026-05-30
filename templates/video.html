@@ -198,7 +198,7 @@
                 <h3 class="section-label"><i data-lucide="camera" class="w-4 h-4"></i> 截图 ({{ screenshots|length }})</h3>
                 <div class="screenshot-scroll">
                     {% for shot in screenshots %}
-                    <img src="{{ shot.path }}" alt="截图" class="screenshot-thumb" onclick="openScreenshot('{{ shot.path }}')" loading="lazy">
+                    <img src="{{ shot.path | escape }}" alt="截图" class="screenshot-thumb" onclick="openScreenshot('{{ shot.path | escape }}')" loading="lazy">
                     {% endfor %}
                 </div>
             </div>
