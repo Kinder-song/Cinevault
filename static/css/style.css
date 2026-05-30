@@ -2517,8 +2517,16 @@ body {
     }
 
     .video-grid {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 1rem;
+    }
+
+    .video-card {
+        border-radius: 12px;
+    }
+
+    .video-card:hover {
+        transform: translateY(-2px) scale(1.005);
     }
 
     .video-grid.list-view .card-media {
@@ -2540,6 +2548,10 @@ body {
         padding: 0.5rem;
     }
 
+    .video-wrapper {
+        border-radius: 8px;
+    }
+
     .video-element {
         max-height: 50vh;
     }
@@ -2547,6 +2559,18 @@ body {
     .controls-row {
         flex-wrap: wrap;
         gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .controls-left,
+    .controls-right {
+        gap: 0.5rem;
+    }
+
+    .control-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0.75rem;
     }
 
     .volume-control {
@@ -2566,12 +2590,27 @@ body {
         max-width: none;
     }
 
+    .filter-right {
+        justify-content: center;
+    }
+
     .dashboard-page {
         padding: 1rem;
     }
 
     .stats-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .stat-icon {
+        width: 40px;
+        height: 40px;
     }
 
     .chart-section {
@@ -2580,11 +2619,13 @@ body {
 
     .pagination {
         flex-wrap: wrap;
+        justify-content: center;
     }
 
     .share-modal {
         min-width: auto;
         width: 90vw;
+        padding: 1rem;
     }
 
     .theater-mode .info-section {
@@ -2597,6 +2638,31 @@ body {
     }
 
     .player-actions .spacer {
+        display: none;
+    }
+
+    /* Touch-friendly interactions */
+    .btn-primary,
+    .btn-secondary,
+    .btn-icon,
+    .control-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Prevent double-tap zoom */
+    .video-card,
+    .control-btn,
+    .pagination-btn {
+        touch-action: manipulation;
+    }
+
+    /* Nav adjustments for mobile */
+    .glass-nav {
+        padding: 0 1rem;
+    }
+
+    .nav-link span {
         display: none;
     }
 }
@@ -2617,6 +2683,34 @@ body {
 
     .user-name {
         display: none;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .stat-icon {
+        margin: 0 auto;
+    }
+
+    .player-actions {
+        padding: 0.75rem;
+    }
+
+    .favorite-btn,
+    .share-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* Safe area padding for mobile */
+    .player-page {
+        padding-bottom: env(safe-area-inset-bottom, 1rem);
+    }
+
+    .dashboard-page {
+        padding-bottom: env(safe-area-inset-bottom, 1rem);
     }
 }
 
