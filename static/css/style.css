@@ -47,119 +47,119 @@
     --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* ===== Dark Theme: Premium Dark Cinema ===== */
-    /* 背景色 - 深邃纯黑 + 微妙渐变层次 */
-    --bg-deep: #030308;
-    --bg-surface: #0A0A10;
-    --bg-elevated: #111118;
-    --bg-glass: rgba(15, 15, 22, 0.85);
-    --bg-glass-hover: rgba(20, 20, 30, 0.9);
-    --bg-muted: #18181F;
+    /* ===== Dark Theme: Cinema Purple Dream (Muted) ===== */
+    /* 背景色 - 更深的紫黑 + 微妙的渐变氛围 */
+    --bg-deep: #080710;
+    --bg-surface: #0F0D1A;
+    --bg-elevated: #14122A;
+    --bg-glass: rgba(20, 18, 45, 0.75);
+    --bg-glass-hover: rgba(30, 27, 65, 0.8);
+    --bg-muted: #1A1735;
 
-    /* 文字色 - 冷调淡灰白 */
-    --text-primary: #E8E8EC;
-    --text-secondary: #8888A0;
-    --text-muted: #55556A;
+    /* 文字色 - 低饱和度淡紫白 */
+    --text-primary: #E8E6F5;
+    --text-secondary: #9994C8;
+    --text-muted: #5C5890;
 
-    /* 强调色 - 高贵玫瑰金 + 优雅紫罗兰 */
-    --accent-pink: #C9A8B8;
-    --accent-lavender: #9999C0;
-    --accent-purple: #7878A8;
-    --accent-cyan: #78A8B8;
-    --accent-violet: #8888A8;
-    --accent-magenta: #C090A0;
+    /* 强调色 - 低饱和度霓虹梦幻调色板 */
+    --accent-pink: #D496B0;
+    --accent-lavender: #A78FC8;
+    --accent-purple: #9585D0;
+    --accent-cyan: #6EB8C8;
+    --accent-violet: #7E75C8;
+    --accent-magenta: #D4A0C8;
 
-    /* 渐变色 - 微妙香槟金 */
-    --gradient-pink-lavender: linear-gradient(135deg, #C9A8B8 0%, #9999C0 100%);
-    --gradient-purple-cyan: linear-gradient(135deg, #8888A8 0%, #78A8B8 100%);
-    --gradient-violet-pink: linear-gradient(135deg, #8888A8 0%, #C9A8B8 100%);
+    /* 渐变色 - 低饱和度 */
+    --gradient-pink-lavender: linear-gradient(135deg, #D496B0 0%, #A78FC8 100%);
+    --gradient-purple-cyan: linear-gradient(135deg, #9585D0 0%, #6EB8C8 100%);
+    --gradient-violet-pink: linear-gradient(135deg, #7E75C8 0%, #D496B0 100%);
 
-    /* 边框 - 极细金线感 */
-    --border-primary: rgba(160, 160, 190, 0.1);
-    --border-secondary: rgba(140, 140, 170, 0.08);
-    --border-accent: rgba(200, 160, 176, 0.25);
+    /* 边框 - 更柔和 */
+    --border-primary: rgba(100, 90, 160, 0.2);
+    --border-secondary: rgba(120, 105, 165, 0.15);
+    --border-accent: rgba(212, 150, 176, 0.3);
 
-    /* 阴影与光晕 - 精致微光 */
-    --shadow-color: rgba(0, 0, 0, 0.6);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.55);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.6);
-    --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.65);
-    --glow-pink: 0 0 20px rgba(200, 160, 176, 0.1);
-    --glow-purple: 0 0 20px rgba(150, 150, 192, 0.08);
-    --glow-cyan: 0 0 15px rgba(120, 168, 184, 0.06);
+    /* 阴影与光晕 - 更柔和的紫色光晕 */
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.55);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.65);
+    --glow-pink: 0 0 25px rgba(212, 150, 176, 0.15);
+    --glow-purple: 0 0 25px rgba(167, 133, 208, 0.12);
+    --glow-cyan: 0 0 20px rgba(110, 184, 200, 0.1);
 
     /* 特殊效果 */
-    --nav-bg: rgba(3, 3, 8, 0.95);
+    --nav-bg: rgba(8, 7, 16, 0.92);
     --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --flow-light: rgba(150, 150, 192, 0.15);
-    --placeholder-start: #1A1A22;
-    --placeholder-mid: #222230;
-    --placeholder-end: #1A1A22;
-    --input-bg: rgba(140, 140, 170, 0.06);
-    --tag-add-btn-bg: rgba(140, 140, 170, 0.08);
-    --tag-add-btn-border: rgba(140, 140, 170, 0.15);
-    --speed-select-bg: rgba(255, 255, 255, 0.04);
-    --duration-badge-bg: rgba(3, 3, 8, 0.9);
-    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+    --flow-light: rgba(167, 133, 208, 0.2);
+    --placeholder-start: #1F1C35;
+    --placeholder-mid: #2A2740;
+    --placeholder-end: #1F1C35;
+    --input-bg: rgba(100, 90, 160, 0.08);
+    --tag-add-btn-bg: rgba(100, 90, 160, 0.12);
+    --tag-add-btn-border: rgba(100, 90, 160, 0.22);
+    --speed-select-bg: rgba(255, 255, 255, 0.06);
+    --duration-badge-bg: rgba(8, 7, 16, 0.9);
+    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
 }
 
-/* ==================== Light Theme: Elegant Minimal ==================== */
+/* ==================== Light Theme: Dreamy Macaron (Muted) ==================== */
 :root[data-theme="light"] {
-    /* 背景色 - 纯净米白 */
-    --bg-deep: #FAFAFA;
-    --bg-surface: #FFFFFF;
-    --bg-elevated: #F5F5F7;
-    --bg-glass: rgba(255, 255, 255, 0.9);
-    --bg-glass-hover: rgba(255, 255, 255, 0.98);
-    --bg-muted: #F0F0F2;
+    /* 背景色 - 更柔和的奶油粉白 */
+    --bg-deep: #FBF8FC;
+    --bg-surface: #FEFCFF;
+    --bg-elevated: #F8F4FB;
+    --bg-glass: rgba(255, 252, 255, 0.88);
+    --bg-glass-hover: rgba(255, 250, 255, 0.95);
+    --bg-muted: #F5F0F8;
 
-    /* 文字色 - 深邃墨色 */
-    --text-primary: #1A1A1A;
-    --text-secondary: #6B6B6B;
-    --text-muted: #A0A0A0;
+    /* 文字色 - 低饱和度深色，更清晰可读 */
+    --text-primary: #4A3348;
+    --text-secondary: #786878;
+    --text-muted: #A898A8;
 
-    /* 强调色 - 优雅玫瑰金 */
-    --accent-pink: #C9A8B8;
-    --accent-lavender: #9090A8;
-    --accent-purple: #7878A0;
-    --accent-cyan: #70A0B0;
-    --accent-violet: #8080A0;
-    --accent-magenta: #B890A0;
+    /* 强调色 - 低饱和度马卡龙调色板 */
+    --accent-pink: #D98AB0;
+    --accent-lavender: #9B80C8;
+    --accent-purple: #8068C0;
+    --accent-cyan: #60B8D8;
+    --accent-violet: #7868C8;
+    --accent-magenta: #D8A0C0;
 
-    /* 渐变色 - 微妙玫瑰金 */
-    --gradient-pink-lavender: linear-gradient(135deg, #C9A8B8 0%, #9090A8 100%);
-    --gradient-purple-cyan: linear-gradient(135deg, #9090A8 0%, #70A0B0 100%);
-    --gradient-violet-pink: linear-gradient(135deg, #8080A0 0%, #C9A8B8 100%);
+    /* 渐变色 - 更柔和 */
+    --gradient-pink-lavender: linear-gradient(135deg, #D98AB0 0%, #9B80C8 100%);
+    --gradient-purple-cyan: linear-gradient(135deg, #9B80C8 0%, #60B8D8 100%);
+    --gradient-violet-pink: linear-gradient(135deg, #7868C8 0%, #D98AB0 100%);
 
     /* 边框 */
-    --border-primary: rgba(150, 150, 160, 0.12);
-    --border-secondary: rgba(140, 140, 150, 0.08);
-    --border-accent: rgba(200, 160, 176, 0.3);
+    --border-primary: rgba(200, 140, 180, 0.3);
+    --border-secondary: rgba(185, 145, 195, 0.25);
+    --border-accent: rgba(217, 138, 176, 0.4);
 
     /* 阴影 */
-    --shadow-color: rgba(0, 0, 0, 0.04);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
-    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.04);
-    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.05);
-    --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.06);
-    --glow-pink: 0 0 12px rgba(200, 160, 176, 0.08);
-    --glow-purple: 0 0 12px rgba(144, 144, 168, 0.06);
-    --glow-cyan: 0 0 10px rgba(112, 160, 176, 0.05);
+    --shadow-color: rgba(90, 60, 80, 0.06);
+    --shadow-sm: 0 1px 2px rgba(90, 60, 80, 0.04);
+    --shadow-md: 0 4px 6px rgba(90, 60, 80, 0.06);
+    --shadow-lg: 0 10px 15px rgba(90, 60, 80, 0.08);
+    --shadow-xl: 0 20px 25px rgba(90, 60, 80, 0.1);
+    --glow-pink: 0 0 20px rgba(217, 138, 176, 0.15);
+    --glow-purple: 0 0 20px rgba(155, 128, 200, 0.12);
+    --glow-cyan: 0 0 15px rgba(96, 184, 216, 0.1);
 
     /* 特殊效果 */
-    --nav-bg: rgba(255, 255, 255, 0.95);
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    --flow-light: rgba(150, 150, 160, 0.1);
-    --placeholder-start: #EAEAEC;
-    --placeholder-mid: #E0E0E2;
-    --placeholder-end: #EAEAEC;
-    --input-bg: rgba(100, 100, 110, 0.05);
-    --tag-add-btn-bg: rgba(100, 100, 110, 0.06);
-    --tag-add-btn-border: rgba(100, 100, 110, 0.12);
-    --speed-select-bg: rgba(255, 255, 255, 0.1);
-    --duration-badge-bg: rgba(255, 255, 255, 0.95);
-    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    --nav-bg: rgba(255, 252, 255, 0.92);
+    --card-shadow: 0 8px 32px rgba(90, 60, 80, 0.08);
+    --flow-light: rgba(185, 145, 195, 0.35);
+    --placeholder-start: #EDE4F0;
+    --placeholder-mid: #E5DAEA;
+    --placeholder-end: #EDE4F0;
+    --input-bg: rgba(155, 128, 200, 0.08);
+    --tag-add-btn-bg: rgba(155, 128, 200, 0.12);
+    --tag-add-btn-border: rgba(155, 128, 200, 0.28);
+    --speed-select-bg: rgba(255, 255, 255, 0.12);
+    --duration-badge-bg: rgba(255, 252, 255, 0.95);
+    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
 }
 
 /* ==================== Base Reset ==================== */
@@ -176,7 +176,7 @@ html {
 
 body {
     font-family: var(--font-body);
-    background: var(--bg-deep);
+    background: linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-surface) 100%);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.6;
@@ -219,10 +219,10 @@ body {
 }
 
 .theme-toggle:hover {
-    background: rgba(137, 180, 232, 0.15);
+    background: rgba(155, 128, 200, 0.12);
     color: var(--accent-pink);
     transform: scale(1.1);
-    box-shadow: 0 0 20px rgba(240, 181, 212, 0.4);
+    box-shadow: var(--glow-pink);
 }
 
 .theme-toggle i {
@@ -287,32 +287,32 @@ body {
 .glow-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(120px);
-    opacity: 0.08;
-    animation: float 30s ease-in-out infinite;
+    filter: blur(100px);
+    opacity: 0.15;
+    animation: float 25s ease-in-out infinite;
 }
 
 .glow-1 {
-    width: 800px;
-    height: 800px;
+    width: 700px;
+    height: 700px;
     background: radial-gradient(circle, var(--accent-lavender) 0%, transparent 70%);
-    top: -300px;
-    left: -250px;
+    top: -250px;
+    left: -200px;
     animation-delay: 0s;
 }
 
 .glow-2 {
-    width: 700px;
-    height: 700px;
+    width: 600px;
+    height: 600px;
     background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%);
-    bottom: -250px;
-    right: -200px;
-    animation-delay: -12s;
+    bottom: -200px;
+    right: -180px;
+    animation-delay: -10s;
 }
 
 .glow-3 {
-    width: 600px;
-    height: 600px;
+    width: 500px;
+    height: 500px;
     background: radial-gradient(circle, var(--accent-purple) 0%, transparent 70%);
     top: 50%;
     left: 50%;
