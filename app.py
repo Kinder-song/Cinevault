@@ -2,8 +2,9 @@
 
 import os
 import logging
+import uuid
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request
 from flask_session import Session
 
 from config import Config
@@ -12,7 +13,7 @@ from services.db_service import init_database, init_db_pool
 # Configure root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,13 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = "./sessions"
 app.config["SESSION_PERMANENT"] = False
 Session(app)
+
+
+# Request ID middleware for logging
+@app.before_request
+def add_request_id():
+    g.request_id = str(uuid.uuid4())
+
 
 # Ensure required directories exist
 for d in ["thumbnails", "sessions", "static/css", "static/js", "cache"]:
@@ -65,6 +73,14 @@ def internal_error(e):
     logger.error(f"Internal error: {e}")
     if request.accept_mimetypes.accept_json:
         return jsonify({"error": "Internal server error"}), 500
+    return render_template("500.html"), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logger.exception(f"Unhandled exception: {e}")
+    if request.accept_mimetypes.accept_json:
+        return jsonify({"error": "An unexpected error occurred"}), 500
     return render_template("500.html"), 500
 
 

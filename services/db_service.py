@@ -174,20 +174,47 @@ def init_database() -> None:
             cursor.execute(table_sql)
         db_logger.info("Database tables created/verified")
 
+        # Create indexes for better query performance
+        indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_videos_filename ON videos(filename)",
+            "CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_videos_created ON videos(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_video_tags_video ON video_tags(video_id)",
+            "CREATE INDEX IF NOT EXISTS idx_video_tags_tag ON video_tags(tag_id)",
+            "CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_collection_videos_collection ON collection_videos(collection_id)",
+        ]
+        for index_sql in indexes:
+            try:
+                cursor.execute(index_sql)
+            except Exception as e:
+                db_logger.warning(f"Index creation skipped (may already exist): {e}")
+        db_logger.info("Database indexes created/verified")
+
     # Create default admin user if not exists
+    # SECURITY: Generate random password on first creation
     try:
         import bcrypt
-        admin_password = bcrypt.hashpw(
-            "admin123".encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
+        import secrets
+        import string
+
+        # Generate a random 16-character password
+        alphabet = string.ascii_letters + string.digits
+        admin_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+        admin_hash = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
         with with_db_cursor() as cursor:
             cursor.execute(
                 """
                 INSERT IGNORE INTO users (username, password_hash)
                 VALUES ('admin', %s)
                 """,
-                (admin_password,),
+                (admin_hash,),
             )
+            # Log the generated password (first time only, when user is created)
+            cursor.execute("SELECT id FROM users WHERE username = 'admin'")
+            if cursor.fetchone():
+                db_logger.info(f"Default admin user created. Initial password: {admin_password}")
         db_logger.info("Default admin user created/verified")
     except Exception as e:
         db_logger.error(f"Failed to create default admin user: {e}")
