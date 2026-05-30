@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,12 +9,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet"></noscript>
+    <!-- Google Fonts: Outfit + Nunito + JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script defer src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <!-- Ambient Blobs (Dark Mode Only) -->
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+    </div>
+
     {% block nav %}
     <nav class="fixed top-0 left-0 right-0 h-16 glass-nav flex items-center justify-between px-6 z-50">
         <div class="nav-left">
@@ -30,7 +40,7 @@
                 <i data-lucide="settings" class="w-5 h-5"></i>
             </a>
             <span class="user-name">{{ session.username }}</span>
-            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题" aria-label="切换深色/浅色模式">
                 <i data-lucide="sun" class="w-5 h-5 sun-icon"></i>
                 <i data-lucide="moon" class="w-5 h-5 moon-icon hidden"></i>
             </button>
@@ -46,7 +56,9 @@
         {% block content %}{% endblock %}
     </main>
 
+    <script type="module" src="/static/js/main.js"></script>
     <script>
+        // Fallback icon initialization if ES modules fail
         (function initIcons() {
             if (window.lucide) { lucide.createIcons(); return; }
             document.addEventListener('DOMContentLoaded', function() {
