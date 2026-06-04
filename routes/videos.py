@@ -70,22 +70,7 @@ def index():
     videos = all_videos[start:start + per_page]
 
     # Get tags by video
-    tags_by_video = {}
-    try:
-        with with_db_cursor() as cursor:
-            cursor.execute("""
-                SELECT t.name, t.color, v.filename
-                FROM tags t
-                JOIN video_tags vt ON t.id = vt.tag_id
-                JOIN videos v ON v.id = vt.video_id
-            """)
-            for row in cursor.fetchall():
-                tags_by_video.setdefault(row['filename'], []).append({
-                    'name': row['name'],
-                    'color': row['color']
-                })
-    except Exception as e:
-        video_logger.error(f"Error fetching tags: {e}")
+    tags_by_video = _fetch_all_tags()
 
     # Get collections for filter dropdown
     collections = []
@@ -336,16 +321,76 @@ def serve_screenshot(filename):
 
 # ==================== API: Video List ====================
 
-@videos_bp.route('/api/videos', methods=['GET'])
+@videos_bp.route("/api/videos", methods=["GET"])
 @login_required
 def api_videos():
-    """Video list API with pagination, search, and sort."""
-    video_path = get_user_video_path(session['user_id'])
-    db_rows = sync_and_get_videos(video_path)
-    all_videos = [video_dict_from_row(r) for r in db_rows]
+    """Video list API.
 
-    # Get tags
-    tags_by_video = {}
+    Order of operations: filter → sort → paginate. This ensures
+    pagination metadata (``page``, ``total``, ``total_pages``)
+    reflects the post-filter result set, not the pre-filter one.
+    """
+    video_path = get_user_video_path(session["user_id"])
+    all_videos = [
+        video_dict_from_row(r) for r in sync_and_get_videos(video_path)
+    ]
+
+    tags_by_video = _fetch_all_tags()
+
+    # 1. Filter (search)
+    search = request.args.get("search", "").strip().lower()
+    if search:
+        all_videos = [
+            v for v in all_videos
+            if search in (v.get("title") or "").lower()
+            or search in (v.get("filename") or "").lower()
+        ]
+
+    # 2. Sort
+    sort = request.args.get("sort", "filename")
+    reverse = request.args.get("order", "asc") == "desc"
+    valid_sorts = {"filename", "title", "duration", "size_bytes", "created_at"}
+    if sort not in valid_sorts:
+        sort = "filename"
+
+    def _key(v):
+        val = v.get(sort) or 0
+        if isinstance(val, str):
+            return val.lower()
+        return val
+
+    try:
+        all_videos.sort(key=_key, reverse=reverse)
+    except TypeError:
+        pass  # mixed types; best-effort
+
+    # 3. Paginate (AFTER filter/sort).
+    # Floor page at 1 but do NOT clamp at total_pages: out-of-range pages
+    # legitimately return an empty slice (a common REST pattern). Total
+    # and total_pages in the response still reflect the post-filter set.
+    per_page = min(max(request.args.get("per_page", 24, type=int), 12), 96)
+    total = len(all_videos)
+    total_pages = max(1, (total + per_page - 1) // per_page) if total > 0 else 1
+    page = max(request.args.get("page", 1, type=int), 1)
+    start = (page - 1) * per_page
+    videos = all_videos[start:start + per_page]
+
+    return jsonify({
+        "videos": videos,
+        "tags": tags_by_video,
+        "total": total,
+        "page": page,
+        "total_pages": total_pages,
+        "sort": sort,
+    })
+
+
+def _fetch_all_tags() -> dict:
+    """Fetch all (filename → [{name, color}]) mappings in one query.
+
+    Shared helper for ``api_videos`` and ``index()``.
+    """
+    tags_by_video: dict = {}
     try:
         with with_db_cursor() as cursor:
             cursor.execute("""
@@ -355,52 +400,13 @@ def api_videos():
                 JOIN videos v ON v.id = vt.video_id
             """)
             for row in cursor.fetchall():
-                tags_by_video.setdefault(row['filename'], []).append({
-                    'name': row['name'],
-                    'color': row['color']
+                tags_by_video.setdefault(row["filename"], []).append({
+                    "name": row["name"],
+                    "color": row["color"],
                 })
     except Exception as e:
-        video_logger.error(f"Error fetching tags: {e}")
-
-    # Pagination
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 24, type=int)
-    per_page = min(max(per_page, 12), 96)
-    total = len(all_videos)
-    total_pages = max(1, (total + per_page - 1) // per_page) if total > 0 else 1
-    page = min(max(page, 1), total_pages)
-    start = (page - 1) * per_page
-
-    # Search filter
-    search = request.args.get('search', '').strip().lower()
-    if search:
-        all_videos = [v for v in all_videos if search in v.get('title', '').lower()
-                      or search in v.get('filename', '').lower()]
-
-    # Sort
-    sort = request.args.get('sort', 'filename')
-    reverse = request.args.get('order', 'asc') == 'desc'
-    valid_sorts = ['filename', 'title', 'duration', 'size_bytes', 'created_at']
-    if sort not in valid_sorts:
-        sort = 'filename'
-    try:
-        all_videos.sort(key=lambda x: (x.get(sort) or '') if isinstance(x.get(sort), str) else (x.get(sort) or 0), reverse=reverse)
-    except Exception:
-        pass
-
-    # Paginate after filtering
-    total = len(all_videos)
-    start = min(start, total - 1) if total > 0 else 0
-    videos = all_videos[start:start + per_page]
-    total_pages = max(1, (total + per_page - 1) // per_page) if total > 0 else 1
-
-    return jsonify({
-        'videos': videos,
-        'tags': tags_by_video,
-        'total': total,
-        'page': page,
-        'total_pages': total_pages
-    })
+        video_logger.error("Error fetching tags: %s", e)
+    return tags_by_video
 
 
 # ==================== API: Video Data ====================
