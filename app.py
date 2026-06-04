@@ -57,6 +57,7 @@ from routes.collections import collections_bp
 from routes.share import share_bp
 from routes.dashboard import dashboard_bp
 from routes.user import user_bp
+from routes.comments import comments_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(index_bp)
@@ -67,6 +68,7 @@ app.register_blueprint(collections_bp)
 app.register_blueprint(share_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(user_bp)
+app.register_blueprint(comments_bp)
 
 # Start the background thumbnail worker
 from services.thumbnail_worker import start_worker
