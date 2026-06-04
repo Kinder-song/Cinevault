@@ -1,205 +1,269 @@
 # CineVault
 
-A beautifully designed local video management and streaming web application with a glassmorphism UI, metadata extraction, and full-featured video player.
+> 私人本地视频档案库 + 流媒体 Web 应用。扫盘、抽元数据、生成缩略图，给你一个带玻璃拟态 UI 的私人网飞。
 
-![](https://img.shields.io/badge/Python-3.10+-blue) ![](https://img.shields.io/badge/Flask-3.0-green) ![](https://img.shields.io/badge/MySQL-8.0-orange)
+![Python](https://img.shields.io/badge/Python-3.10+-blue) ![Flask](https://img.shields.io/badge/Flask-3.0-green) ![MySQL](https://img.shields.io/badge/MySQL-8.0-orange) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-## Features
+## ✨ 主要功能
 
-### Video Library
-- **Bento grid layout** with glassmorphism cards, hover previews, and flow-light effects
-- **Grid / List view toggle** with localStorage persistence
-- **Server-side pagination** with configurable page size (12/24/48/96)
-- **Full-text search** across titles, tags, resolution, framerate, and bitrate
-- **Sort** by name, file size, or date
-- **Collection filter** — organize videos into named collections
-- **Progress indicators** on cards showing watch completion percentage
-- **Favorite** badges and **rating** display on cards
+### 🎞️ 视频库
+- **Bento Grid** 玻璃拟态卡片，hover 时 600ms 触发静音预览（同时最多 3 个）
+- **网格 / 列表** 视图切换，状态写入 `localStorage`
+- **多字段搜索**：标题、标签、分辨率、帧率、码率（100ms debounce）
+- **服务端分页**：12 / 24 / 48 / 96 / 页
+- **合集过滤**、**按名称/大小/日期排序**
+- 卡片上展示**缩略图**、**进度条**、**收藏** ❤️、**评分** ★
 
-### Video Player
-- **Custom controls**: play/pause, volume, speed (0.25x–2x), skip ±10s, progress bar
-- **Theater mode** — expands player to full width with side-by-side metadata
-- **Picture-in-Picture** support
-- **Fullscreen** with complete keyboard control
-- **Subtitle support** — auto-detects `.srt`, `.vtt`, `.ass` files alongside videos
-- **Screenshot gallery** — auto-discovers related images with lightbox viewer
-- **Playback progress memory** — auto-saves position every 5 seconds, resume bar on return
-- **5-star rating** system with click-to-toggle
-- **Favorite / bookmark** toggle
-- **Share links** — generate time-limited tokens (1h / 24h / 3d / 7d) with copy-to-clipboard
+### ▶️ 播放器
+- HTML5 `<video>` + **完全自定义控件**
+- **键盘快捷键**（YouTube 风格）：
+  - `Space` / `K` — 播放/暂停
+  - `J` / `L` — 后退/前进 10 秒
+  - `←` / `→` — ±5 秒
+  - `↑` / `↓` — 音量 ±10%
+  - `F` — 全屏、`T` — 剧院模式、`P` — 画中画、`M` — 静音
+  - `0`-`9` — 跳到 0%-90%
+- **进度记忆**：每 5 秒自动 POST，回到视频时弹"继续播放"
+- **侧边播放列表**：点击切换视频不刷页
+- **自动字幕**（`.srt` / `.vtt` / `.ass`）+ **截图画廊**（lightbox）
 
-### Keyboard Shortcuts
+### 📊 仪表盘
+- 5 个统计卡（视频数 / 总时长 / 总大小 / 收藏 / 观看进度）
+- 3 个图表：标签分布、编码格式分布、分辨率分布（4K / 1080p / 720p / SD）
 
-| Key | Action |
-|-----|--------|
-| `Space` / `K` | Play / Pause |
-| `J` | Skip back 10s |
-| `L` | Skip forward 10s |
-| `←` `→` | Skip ±5s |
-| `↑` `↓` | Volume ±10% |
-| `F` | Fullscreen |
-| `T` | Theater mode |
-| `P` | Picture-in-Picture |
-| `M` | Mute / Unmute |
-| `0`–`9` | Seek to 0%–90% |
+### 🗂️ 组织与协作
+- **标签**（多对多，6 色随机）
+- **合集**（多对多）
+- **收藏** / **1-5 星评分** / **播放进度**
+- **分享链接**：1h / 24h / 3d / 7d 时限 token，免登录可访问
 
-### Dashboard
-- **Stats cards**: total videos, total duration, total storage, favorites, watch progress
-- **Charts**: tag distribution, codec distribution, resolution breakdown (4K / 1080p / 720p / SD)
+### 🔐 安全
+- **bcrypt** 密码哈希
+- **登录限流**：5 次失败 → 锁 300 秒
+- **路径穿越防护**（`validate_video_path`，附 6 个 pytest）
+- **首次登录强制改密码**
 
-### Metadata & Organization
-- **Automatic metadata extraction** via ffmpeg: resolution, framerate, bitrate, video/audio codec, channels, sample rate
-- **Incremental sync** — only re-scans files when size or modification time changes
-- **Thumbnail generation** — random frame capture, manual refresh
-- **Tag system** — add/remove tags with color-coded pills on cards and player page
-- **Collections** — create, delete, add/remove videos (many-to-many)
+## 🛠️ 技术栈
 
-### Theme & UX
-- **Dark / Light theme** toggle with localStorage persistence
-- **Glassmorphism design** — backdrop-filter blur on cards, nav, panels
-- **Toast notifications** — slide-in alerts for all actions (success/error/info)
-- **Mobile responsive** — adaptive layout at 768px and 480px breakpoints
-- **Lazy-loaded hover previews** — video thumbnails animate into muted previews on hover
+| 层 | 选型 |
+|---|---|
+| 后端 | Python 3.10+ · Flask 3.0 · Waitress 3.0（生产 WSGI，8 线程） |
+| 数据库 | MySQL 8.0 · mysql-connector-python · 8 连接池 |
+| 视频处理 | ffmpeg（自带 80MB 二进制，无系统依赖） |
+| 前端 | Jinja2 模板 + 原生 ES Module JS（**无构建工具**） |
+| 样式 | 手写 CSS（2700+ 行，玻璃拟态）+ Tailwind（CDN 工具类） |
+| 图标 | Lucide（CDN 懒加载） |
+| 认证 | bcrypt + Flask 文件 Session + 登录限流 |
+| 字体 | Outfit / Nunito / JetBrains Mono（Google Fonts） |
 
-### Performance
-- **Waitress production WSGI server** — 8 worker threads, 2MB socket buffer
-- **2MB file I/O buffer** — eliminates ~250x system calls vs default 8KB buffer
-- **Incremental DB sync** — batch-stat comparison, ffmpeg only on new/changed files
-- **MySQL connection pooling** — 8 persistent connections
-- **RAF-batched DOM updates** — timeupdate handler uses requestAnimationFrame
-- **Hardware video overlay path** — no GPU compositing hacks on video element
-- **Debounced search** — 100ms delay, CSS class toggle instead of display:none
+## 📂 项目结构
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.10+, Flask 3.0 |
-| WSGI Server | Waitress 3.0 |
-| Database | MySQL 8.0, mysql-connector-python |
-| Auth | bcrypt password hashing, Flask sessions |
-| Frontend | Jinja2 templates, vanilla JavaScript, Tailwind CSS (CDN) |
-| Icons | Lucide (lazy-loaded) |
-| Video | ffmpeg (metadata extraction, thumbnail generation) |
-
-## Prerequisites
-
-- Python 3.10+
-- MySQL 8.0+
-- ffmpeg (included as `./ffmpeg` binary or set custom path)
-
-## Setup
-
-### 1. Clone and create virtual environment
-```bash
-git clone https://github.com/Kinder-song/Cinevault.git
-cd Cinevault
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+video_view/
+├── app.py                      # 入口（Waitress 启动）
+├── config.py                   # 环境配置
+├── ffmpeg                      # 80MB 自带二进制
+├── fix_thumbnails.py           # 一次性缩略图自愈脚本
+├── requirements.txt
+├── .env                        # DB 地址 / SECRET_KEY
+│
+├── routes/                     # 7 个 Flask Blueprint
+│   ├── auth.py                 #   /login /logout + login_required
+│   ├── videos.py               #   主页 / 详情 / 流 / 缩略图 / 字幕 / 截图 + 8 个 API
+│   ├── tags.py                 #   视频标签
+│   ├── collections.py          #   视频合集
+│   ├── share.py                #   时限分享链接
+│   ├── dashboard.py            #   /dashboard
+│   └── user.py                 #   /settings + 用户资料
+│
+├── services/                   # 数据/业务层
+│   ├── db_service.py           #   连接池 + 建表 + 仪表盘 SQL
+│   ├── video_service.py        #   ffmpeg 元数据 + 缩略图 + 字幕/截图扫描
+│   └── sync_service.py         #   增量同步（size + mtime 短路）
+│
+├── utils/
+│   ├── security.py             #   路径校验 + 登录限流
+│   ├── formatters.py           #   时长/码率/帧率/体积格式化
+│   └── logger.py               #   4 个命名 logger
+│
+├── templates/                  # 9 个 Jinja 模板
+│   ├── base.html               #   顶部导航 + 主题 + main.js
+│   ├── index.html              #   视频库（卡片 + 分页 + 过滤）
+│   ├── video.html              #   播放器页（控件 + 剧院 + PiP + 分享）
+│   ├── dashboard.html          #   统计 + 图表
+│   ├── login.html              #   登录
+│   ├── settings.html           #   账户设置
+│   ├── shared.html             #   免登录分享页
+│   ├── 404.html / 500.html
+│
+├── static/
+│   ├── css/style.css           # 2731 行手写玻璃拟态
+│   └── js/
+│       ├── main.js             #   入口（动态 import player）
+│       └── modules/            # 5 个原生 ES Module
+│           ├── theme.js        #     暗 / 亮主题
+│           ├── toast.js        #     滑入通知 + 图标刷新
+│           ├── card.js         #     卡片 hover 预览
+│           ├── tags.js         #     卡片上的标签
+│           └── player.js       #     播放器全部逻辑
+│
+├── tests/test_security.py      # 10 个 pytest
+│
+├── video/                      # 视频源目录（17 个 .mp4 / .mov）
+├── thumbnails/                 # 自动生成的 jpg 缩略图
+└── sessions/                   # Flask 文件 session
 ```
 
-### 2. Install dependencies
+## 🚀 快速开始
+
+### 1. 准备环境
+- Python 3.10+
+- MySQL 8.0+（远程或本地）
+- ffmpeg（**项目自带 80MB 二进制，无需另装**）
+
+### 2. 装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment
+### 3. 配置 `.env`
+```env
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=video
+SECRET_KEY=请改成强随机字符串
+VIDEO_PATH=./video
+FFMPEG_PATH=./ffmpeg
+```
+
+### 4. 放视频
+把 `.mp4` / `.mkv` / `.webm` / `.mov` / `.avi` / `.m4v` 放进 `video/` 目录。
+
+### 5. 启动
 ```bash
-cp .env.example .env
+python3 app.py
+```
+访问 **http://localhost:55300**
+
+### 6. 首次登录
+- 用户名：`admin`
+- 密码：`admin123`
+- **首次登录会强制跳转去改密码**
+
+## 🔌 API 速查
+
+### 视频
+| 方法 | 端点 | 说明 |
+|---|---|---|
+| GET | `/` | 视频库主页 |
+| GET | `/video/<f>` | 播放器页 |
+| GET | `/stream/<f>` | 视频流（支持 HTTP Range） |
+| GET | `/thumbnail/<f>` | 缩略图（自动懒生成） |
+| GET | `/subtitle/<f>` / `/screenshot/<f>` | 字幕 / 截图 |
+| GET | `/api/videos` | 列表 + 分页 + 搜索 + 排序 |
+| GET | `/api/video/<f>/data` | 单视频完整数据包（切换时用） |
+| POST | `/api/video/<f>/progress` | 保存播放进度 |
+| POST | `/api/video/<f>/favorite` | 切换收藏 |
+| POST | `/api/video/<f>/rating` | 设置评分 0-5 |
+| POST | `/api/video/<f>/refresh-thumb` | 重新生成缩略图 |
+| POST | `/api/video/<f>/share` | 生成分享 token |
+| POST | `/api/video/<f>/tags` | 加标签 |
+| DELETE | `/api/video/<f>/tags/<t>` | 删标签 |
+
+### 合集 / 用户 / 仪表盘
+| 方法 | 端点 | 说明 |
+|---|---|---|
+| GET / POST | `/api/collections` | 列出 / 创建 |
+| DELETE | `/api/collections/<id>` | 删除 |
+| GET | `/api/collections/<id>` | 详情 + 视频列表 |
+| POST | `/api/collections/<id>/videos` | 加视频到合集 |
+| DELETE | `/api/collections/<id>/videos/<f>` | 从合集移除 |
+| GET | `/api/user/profile` | 取用户资料 |
+| POST | `/api/user/profile` | 改用户名 / 密码 / 视频路径 |
+| GET | `/dashboard` | 仪表盘页 |
+| GET | `/share/<token>` | 免登录访问分享 |
+| GET | `/health` | 健康检查 |
+
+## 🗄️ 数据模型
+
+```
+users             用户
+videos            视频（filename、duration、width/height、codec、bitrate、fps、
+                  favorite、rating、watched_duration、thumbnail_path…）
+tags              标签（name、color）
+video_tags        视频-标签多对多
+collections       合集
+collection_videos 合集-视频多对多
+share_tokens      分享 token（video_filename、expires_at）
 ```
 
-Edit `.env` with your settings:
+`videos.favorite` / `watched_duration` / `share_tokens.video_filename` 是当前 schema 的实际列名。表结构在服务首次启动时由 `services/db_service.py:init_database()` 自动建好。
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SECRET_KEY` | Flask session secret | `cinevault-secret-key-...` |
-| `DB_HOST` | MySQL host | `localhost` |
-| `DB_PORT` | MySQL port | `3306` |
-| `DB_USER` | MySQL user | `root` |
-| `DB_PASSWORD` | MySQL password | (empty) |
-| `DB_NAME` | Database name | `video` |
-| `video_path` | Video files directory | `./video` |
-| `FFMPEG_PATH` | ffmpeg binary path | `./ffmpeg` |
+## ⚙️ 配置
 
-### 4. Place video files
-Put your `.mp4`, `.mkv`, `.webm`, `.mov`, `.avi`, or `.m4v` files in the `video/` directory (or the path configured in `.env`).
+| 变量 | 必填 | 说明 | 默认 |
+|---|---|---|---|
+| `SECRET_KEY` | ✅ | Flask session 加密 key | — |
+| `DB_HOST` | | MySQL 地址 | `localhost` |
+| `DB_PORT` | | MySQL 端口 | `3306` |
+| `DB_USER` | | MySQL 用户 | `root` |
+| `DB_PASSWORD` | | MySQL 密码 | （空）|
+| `DB_NAME` | | 数据库名 | `video` |
+| `VIDEO_PATH` | | 视频目录 | `./video` |
+| `FFMPEG_PATH` | | ffmpeg 二进制路径 | `./ffmpeg` |
+| `THUMBNAIL_DIR` | | 缩略图目录 | `thumbnails` |
 
-### 5. Run
+## 🛠️ 工具脚本
+
+### `fix_thumbnails.py` — 缩略图自愈
+历史数据可能出现"DB 写了路径但磁盘没文件"或"文件在旧目录 `video/thumbnails/`"的不一致。运行：
 ```bash
-python app.py
+python3 fix_thumbnails.py --regen-missing
 ```
+- 优先把孤儿文件从遗留目录搬到正确位置
+- 移动失败时用 ffmpeg 重新生成
+- 加 `--cleanup-legacy` 删除空了的遗留目录
 
-The application starts at **http://localhost:55300**.
+## ⚡ 性能要点
 
-### Default credentials
-- **Username**: `admin`
-- **Password**: `admin123`
+- **Waitress 8 线程** + **2MB socket 缓冲** + **2MB 文件 I/O 缓冲**
+- **MySQL 连接池**（8 持久连接）
+- **HTTP Range** 支持（视频流跳播）
+- **增量同步**：`os.stat` 取 `size + mtime`，与 DB 比对，**只对变化的文件跑 ffmpeg**
+- **RAF 批处理**：`timeupdate` 事件用 `requestAnimationFrame` 节流
+- **缩略图并发控制**：hover 预览最多同时 3 个
+- **搜索 debounce** 100ms
 
-> Change the password immediately via the Settings page after first login.
-
-## Project Structure
-
+## 🧪 测试
+```bash
+pip install pytest
+pytest tests/
 ```
-Cinevault/
-├── app.py                  # Main application (982 lines)
-├── config.py               # Environment configuration
-├── requirements.txt        # Python dependencies
-├── ffmpeg                  # ffmpeg binary
-├── .env                    # Environment variables (gitignored)
-├── static/
-│   ├── css/style.css       # Full stylesheet (2378 lines)
-│   └── js/main.js          # Client-side logic (541 lines)
-├── templates/
-│   ├── base.html           # Base layout with nav, theme, CDN loading
-│   ├── index.html          # Video library with pagination + filters
-│   ├── video.html          # Video player page
-│   ├── dashboard.html      # Stats and charts dashboard
-│   ├── shared.html         # Public share page (no auth)
-│   ├── login.html          # Login form
-│   └── settings.html       # User settings
-├── video/                  # Video files directory (gitignored)
-├── thumbnails/             # Generated thumbnails (gitignored)
-├── sessions/               # Flask session files (gitignored)
-└── cache/                  # Metadata cache (gitignored)
-```
+覆盖：路径穿越防护、登录限流（10 个用例）。
 
-## API Reference
+## 🐛 常见问题
 
-### Video Management
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/video/<f>/tags` | Add tag to video |
-| `DELETE` | `/api/video/<f>/tags/<t>` | Remove tag from video |
-| `POST` | `/api/video/<f>/progress` | Save playback position |
-| `POST` | `/api/video/<f>/favorite` | Toggle favorite |
-| `POST` | `/api/video/<f>/rating` | Set rating (0–5) |
-| `POST` | `/api/video/<f>/refresh-thumb` | Regenerate thumbnail |
-| `GET` | `/api/video/<f>/info` | Get video metadata |
-| `POST` | `/api/video/<f>/share` | Create share link |
+**Q: 缩略图一直 404？**
+A: 检查 `THUMBNAIL_DIR` 与 `Config.THUMBNAIL_DIR` 一致；浏览器 Ctrl+Shift+R 硬刷；跑 `fix_thumbnails.py --regen-missing`。
 
-### Collections
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/collections` | List all collections |
-| `POST` | `/api/collections` | Create collection |
-| `DELETE` | `/api/collections/<id>` | Delete collection |
-| `GET` | `/api/collections/<id>` | Get collection with videos |
-| `POST` | `/api/collections/<id>/videos` | Add video to collection |
-| `DELETE` | `/api/collections/<id>/videos/<f>` | Remove video from collection |
+**Q: ffmpeg 报"not found"？**
+A: 默认走 `./ffmpeg`（项目自带二进制）。如要换路径，在 `.env` 改 `FFMPEG_PATH`。
 
-### User
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/user/profile` | Get user profile |
-| `POST` | `/api/user/profile` | Update username/password/video path |
+**Q: 首次启动 MySQL 表结构对不上？**
+A: 当前 schema 字段名是 `favorite` / `watched_duration` / `video_filename`。如果是从更老版本升上来，参考 `fix_thumbnails.py` 的自愈模式写迁移。
 
-## Supported Formats
+## 📝 更新日志
 
-### Video
-`.mp4` `.mkv` `.webm` `.mov` `.avi` `.m4v`
+### 2026-06 重构要点
+- 缩略图统一到 `Config.THUMBNAIL_DIR`（修过路由找 `thumbnails/`、代码写 `video/thumbnails/` 的目录 bug）
+- `refresh-thumb` 端点改成"成功才返 200"，失败返 500 + 明确错误
+- `routes/videos.py` 8 个死 import 清理 + 去重 `login_required`
+- `static/js/modules/player.js` 9 个只内部用的 `export` 去掉
+- `static/js/modules/filter.js` / `playlist.js` / `utils.js` 三个 stub 模块删除
+- 清理 `cache/` `transcoded/` `__pycache__/` `.DS_Store` 等遗留
 
-### Subtitles (auto-detected alongside video files)
-`.srt` `.vtt` `.ass`
+## 📄 License
 
-### Screenshots (auto-detected by filename prefix match)
-`.jpg` `.jpeg` `.png` `.gif` `.webp` `.bmp`
+MIT
