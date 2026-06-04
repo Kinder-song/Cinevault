@@ -12,6 +12,7 @@
 - 多字段搜索：标题、标签、分辨率、帧率、码率
 - 服务端分页（12/24/48/96/页）+ 排序 + 合集过滤
 - 卡片上显示缩略图、播放进度、收藏 ❤️、评分 ★
+- 首页"最近观看"轨道
 
 ### ▶️ 播放器
 - HTML5 `<video>` + 完全自定义控件
@@ -25,6 +26,13 @@
 - 进度记忆：每 5 秒自动保存，回到视频时"继续播放"
 - 侧边播放列表：点击切换不刷页
 - 自动字幕（`.srt` / `.vtt` / `.ass`）+ 截图画廊
+- 错误覆盖层 + 离线提示
+
+### 💬 评论 & 历史
+- 视频页内联评论（XSS-safe 转义、最长 2000 字）
+- 评论删除：作者本人或 admin
+- `/history` 页面记录最近 100 次观看
+- "继续播放"自动同步到历史
 
 ### 📊 仪表盘
 - 统计卡：视频总数、总时长、总大小、收藏数、观看进度
@@ -34,6 +42,15 @@
 - 标签（多对多，6 色）
 - 合集（多对多）
 - 时限分享链接（1h / 24h / 3d / 7d），免登录可访问
+
+### ♿ 可访问性 & 性能
+- 视频卡片为 `<a>` 元素，键盘 Tab 可达
+- 截图 lightbox 支持 `Esc` 关闭、`role="dialog"`
+- 响应式断点（768 / 480px）
+- 首次访问引导浮层（快捷键提示）
+- 增量扫描：mtime 未变不重新探测 ffmpeg
+- 元数据 + 缩略图合并为单次 ffmpeg 调用
+- 缩略图后台 worker 生成，不阻塞首屏
 
 ## 📸 截图
 
@@ -77,8 +94,11 @@ python3 app.py
 | `DB_PORT` | | `3306` | MySQL 端口 |
 | `DB_USER` / `DB_PASSWORD` | | `root` / 空 | MySQL 凭据 |
 | `DB_NAME` | | `video` | 数据库名 |
-| `VIDEO_PATH` | | `./video` | 视频目录 |
+| `VIDEO_PATH` | | `./video` | 视频目录（默认白名单之一） |
+| `VIDEO_ROOTS` | | 空 | 追加白名单目录，逗号分隔绝对路径（外接硬盘等） |
 | `FFMPEG_PATH` | | `./ffmpeg` | ffmpeg 路径（用项目自带的就不要改） |
+| `PROXY_FIX_DEPTH` | | `0` | `X-Forwarded-For` 可信代理层数（反代后部署时设为 `1`） |
+| `ENABLE_FS_WATCHER` | | `0` | 设 `1` 启用文件系统监听，文件新增自动失效缓存 |
 
 ## 🛠 技术栈
 
@@ -101,13 +121,16 @@ python3 app.py
 | 认证 | `POST /login` · `GET /logout` | 登录登出 |
 | 视频 | `GET /api/videos` | 列表（分页/搜索/排序） |
 | 视频 | `GET /api/video/<f>/data` | 单视频完整数据 |
-| 视频 | `POST /api/video/<f>/progress` | 保存播放进度 |
+| 视频 | `POST /api/video/<f>/progress` | 保存播放进度（同时写入历史） |
 | 视频 | `POST /api/video/<f>/favorite` | 切换收藏 |
 | 视频 | `POST /api/video/<f>/rating` | 设置评分 0-5 |
 | 视频 | `POST /api/video/<f>/tags` · `DELETE /api/video/<f>/tags/<t>` | 标签管理（**admin only**） |
 | 视频 | `POST /api/video/<f>/share` | 生成分享 token |
 | 视频 | `POST /api/video/<f>/refresh-thumb` | 重新生成缩略图（**admin only**） |
+| 视频 | `GET /api/video/<f>/comments` · `POST` | 列表 / 发布评论 |
+| 视频 | `DELETE /api/comments/<id>` | 删评论（作者本人或 admin） |
 | 视频 | `GET /stream/<f>` · `GET /thumbnail/<f>` · `GET /subtitle/<f>` | 流 / 缩略图 / 字幕 |
+| 历史 | `GET /history` | 最近 100 次观看 |
 | 合集 | `GET/POST /api/collections` · `DELETE /api/collections/<id>` | 列表/创建/删除（删除 **admin only**） |
 | 合集 | `GET /api/collections/<id>` | 详情 |
 | 合集 | `POST/DELETE /api/collections/<id>/videos[ /<f>]` | 加减视频（**admin only**） |
@@ -122,16 +145,17 @@ python3 app.py
 
 ```
 CineVault/
-├── app.py              # Flask 入口
-├── config.py           # 环境配置
+├── app.py              # Flask 入口（ProxyFix + SeaSurf）
+├── config.py           # 环境配置（VIDEO_ROOTS / PROXY_FIX_DEPTH）
 ├── ffmpeg              # 80MB 自带二进制
 ├── fix_thumbnails.py   # 维护者工具：缩略图自愈
-├── routes/             # 7 个 Blueprint（auth / videos / tags / collections / share / dashboard / user）
-├── services/           # 数据/业务层（DB / 视频元数据 / 增量同步）
-├── utils/              # 安全 / 格式化 / 日志
-├── templates/          # 9 个 Jinja 模板
-├── static/             # CSS + 5 个 JS module
-├── tests/              # pytest
+├── routes/             # 11 个 Blueprint（auth / index / player / api_videos / tags / collections / share / dashboard / user / comments / history）
+├── repositories/       # 数据访问层（Video / User / Tag / Collection / Share / Stats / Comment / History）
+├── services/           # 业务层（DB / 视频元数据 / 增量同步 / 缩略图 worker / FS 监听）
+├── utils/              # 安全 / 错误净化 / 格式化 / 日志
+├── templates/          # 11 个 Jinja 模板
+├── static/             # 4 个 CSS 模块 + 5 个 JS module
+├── tests/              # pytest（单元 + 集成，集成需 `INTEGRATION_DB=1`）
 ├── video/              # 你的视频放这里
 ├── thumbnails/         # 自动生成的 jpg
 └── sessions/           # Flask session 文件
@@ -145,6 +169,16 @@ pytest tests/
 ```
 
 测试覆盖：路径穿越防护、登录限流。
+
+## 🔒 安全
+
+简要说明（详见 `SECURITY.md`）：
+
+- **CSRF 保护** — `flask-seasurf` 保护所有 POST/PUT/DELETE，客户端自动附加 `X-CSRF-Token` 头
+- **视频目录白名单** — 用户 `video_path` 只能选 `VIDEO_ROOTS` 白名单内的目录
+- **反代可信层数** — 部署在反代后请设 `PROXY_FIX_DEPTH=1`，否则保持 `0`
+- **登录限流** — 同一 IP 5 次失败锁定 5 分钟
+- **错误净化** — 500 响应不暴露 SQL / 堆栈
 
 ## 🐛 常见问题
 
