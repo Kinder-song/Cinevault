@@ -5,6 +5,7 @@ import logging
 
 from flask import Flask, jsonify, render_template, request
 from flask_session import Session
+from flask_seasurf import SeaSurf
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
@@ -18,7 +19,13 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=Config.PROXY_FIX_DEPTH)
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 app.config['SESSION_TYPE'] = Config.SESSION_TYPE
 app.config['SESSION_FILE_DIR'] = Config.SESSION_FILE_DIR
+# Use the conventional X-CSRF-Token header (flask-seasurf default is X-CSRFToken)
+app.config['CSRF_HEADER_NAME'] = 'X-CSRF-Token'
+# Force CSRF on even when callers set TESTING=True (SeaSurf disables itself
+# when TESTING is True; the test suite wants CSRF on regardless).
+app.config['CSRF_DISABLE'] = False
 Session(app)
+csrf = SeaSurf(app)
 
 # Configure root logger
 logging.basicConfig(
@@ -62,6 +69,20 @@ def not_found(e):
     return render_template("404.html"), 404
 
 
+@app.errorhandler(403)
+def forbidden(e):
+    """Handle CSRF failures (and any other 403) with a clean JSON/text body.
+
+    flask-seasurf raises werkzeug.Forbidden; the catch-all Exception handler
+    would otherwise convert it to a 500. Return the 403 verbatim so clients
+    can detect CSRF failures.
+    """
+    description = getattr(e, "description", str(e))
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify({"error": "Forbidden", "reason": description}), 403
+    return description, 403
+
+
 @app.errorhandler(500)
 def internal_error(e):
     logger.exception("Internal error: %s", e)
@@ -85,3 +106,13 @@ if __name__ == "__main__":
     from waitress import serve
 
     serve(app, host="0.0.0.0", port=55300, threads=8, send_bytes=2097152)
+
+
+# CSRF: exempt login (pre-session) and share (public link flow).
+# Login establishes the session, so it can't carry a CSRF token yet. The share
+# blueprint handles the public /share/<token> GET (no auth) plus the auth'd
+# POST /api/video/<file>/share; exempting the whole blueprint keeps the
+# public flow working and the trade-off is documented in the README.
+for _view_func in app.view_functions.values():
+    if _view_func.__module__ in ("routes.auth", "routes.share"):
+        csrf.exempt(_view_func)
