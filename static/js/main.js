@@ -3,6 +3,7 @@ import { initCards } from './modules/card.js';
 import { initToast, showToast } from './modules/toast.js';
 import { loadComments } from './modules/comments.js';
 import { toggleTagEditor, deleteTag } from './modules/tags.js';
+import { initVideoErrorHandling } from './modules/video_errors.js';
 import './modules/tags.js';
 
 // Auto-attach CSRF token to all fetch requests
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('video-player')) {
         import('./modules/player.js').then(m => m.initPlayer?.());
         loadComments();
+        initVideoErrorHandling();
     }
 });
 

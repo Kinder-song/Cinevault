@@ -26,7 +26,7 @@
     <div class="player-layout">
         <div class="player-section">
             <div class="video-wrapper">
-                <video id="video-player" class="video-element" playsinline preload="auto" controlslist="nodownload"
+                <video id="video-player" class="video-element" playsinline preload="metadata" controlslist="nodownload"
                        data-filename="{{ video.filename }}"
                        data-duration="{{ video.duration_raw or 0 }}"
                        data-progress="{{ video.progress or 0 }}">
