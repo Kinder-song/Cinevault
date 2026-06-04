@@ -26,6 +26,16 @@ export function initPlayer() {
         }
     });
 
+    // Buffered progress bar: update from 'progress' event (lying UI fix)
+    const bufferedBar = document.querySelector('.progress-buffered');
+    video.addEventListener('progress', () => {
+        if (!bufferedBar || !video.duration) return;
+        if (video.buffered.length > 0) {
+            const end = video.buffered.end(video.buffered.length - 1);
+            bufferedBar.style.width = ((end / video.duration) * 100) + '%';
+        }
+    });
+
     // RAF-batched timeupdate: avoid DOM mutations on every event (~4/sec)
     let timeUpdateDirty = false;
     video.addEventListener('timeupdate', () => {
