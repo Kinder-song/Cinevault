@@ -31,7 +31,7 @@
                 <input type="text" id="video-path" class="form-input" value="{{ user.video_path or './video' }}" placeholder="./video">
                 <p class="form-hint">设置您自定义的视频文件夹路径</p>
             </div>
-            <button class="save-btn" onclick="saveProfile()">
+            <button class="save-btn" id="save-profile-btn">
                 <i data-lucide="save" class="w-4 h-4"></i>
                 保存更改
             </button>
@@ -51,7 +51,7 @@
                 <label for="confirm-password">确认新密码</label>
                 <input type="password" id="confirm-password" class="form-input" placeholder="请再次输入新密码">
             </div>
-            <button class="save-btn" onclick="savePassword()">
+            <button class="save-btn" id="save-password-btn">
                 <i data-lucide="lock" class="w-4 h-4"></i>
                 更新密码
             </button>
@@ -66,6 +66,10 @@
 <script type="module" src="/static/js/main.js"></script>
 <script>
     lucide.createIcons();
+
+    // Wire save buttons (replaces inline onclick)
+    document.getElementById('save-profile-btn')?.addEventListener('click', () => saveProfile());
+    document.getElementById('save-password-btn')?.addEventListener('click', () => savePassword());
 
     const isFirstLogin = {{ 'true' if request.args.get('first_login') == '1' else 'false' }};
 

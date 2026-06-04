@@ -2,6 +2,7 @@ import { initTheme } from './modules/theme.js';
 import { initCards } from './modules/card.js';
 import { initToast, showToast } from './modules/toast.js';
 import { loadComments } from './modules/comments.js';
+import { toggleTagEditor, deleteTag } from './modules/tags.js';
 import './modules/tags.js';
 
 // Auto-attach CSRF token to all fetch requests
@@ -17,6 +18,29 @@ window.fetch = (url, options = {}) => {
     }
     return originalFetch(url, options);
 };
+
+// Event delegation for tag add/remove (replaces inline onclick on .tag-delete / .tag-add-btn).
+// Video cards are now <a> elements — these clicks must prevent the anchor navigation
+// and stop propagation so the card itself doesn't also fire.
+document.addEventListener('click', (e) => {
+    const tagDelete = e.target.closest('.tag-delete');
+    if (tagDelete) {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = tagDelete.closest('.video-card');
+        const filename = card?.dataset?.filename;
+        const tagName = tagDelete.dataset?.tag;
+        if (filename && tagName) deleteTag({ stopPropagation: () => {} }, filename, tagName);
+        return;
+    }
+    const tagAdd = e.target.closest('.tag-add-btn');
+    if (tagAdd) {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = tagAdd.closest('.video-card');
+        if (card) toggleTagEditor({ stopPropagation: () => {} }, card);
+    }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();

@@ -33,6 +33,9 @@ export function initTheme() {
             }
         }
     });
+
+    // Wire theme toggle button (replaces inline onclick)
+    document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
 }
 
 export function toggleTheme() {

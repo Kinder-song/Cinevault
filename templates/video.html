@@ -12,10 +12,10 @@
 <div class="resume-bar" id="resume-bar">
     <div class="resume-info">
         <span>已观看至 {{ (video.progress / video.duration_raw * 100)|round }}%</span>
-        <button onclick="resumePlayback()">
+        <button id="resume-play-btn">
             <i data-lucide="play" class="w-4 h-4"></i> 继续播放
         </button>
-        <button onclick="dismissResume()">
+        <button id="resume-dismiss-btn" aria-label="关闭">
             <i data-lucide="x" class="w-4 h-4"></i>
         </button>
     </div>
@@ -56,10 +56,10 @@
                             </button>
 
                             <div class="volume-control">
-                                <button class="control-btn" id="mute-btn">
+                                <button class="control-btn" id="mute-btn" aria-label="静音">
                                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                                 </button>
-                                <input type="range" class="volume-slider" min="0" max="100" value="100">
+                                <input type="range" class="volume-slider" min="0" max="100" value="100" aria-label="音量">
                             </div>
 
                             <span class="time-display">
@@ -75,7 +75,8 @@
                                 <i data-lucide="skip-forward" class="w-4 h-4"></i>
                             </button>
 
-                            <select class="speed-select" id="speed-select">
+                            <label for="speed-select" class="sr-only">播放速度</label>
+                            <select class="speed-select" id="speed-select" aria-label="播放速度">
                                 <option value="0.25">0.25x</option>
                                 <option value="0.5">0.5x</option>
                                 <option value="1" selected>1x</option>
@@ -120,7 +121,7 @@
             </div>
 
             <div class="player-actions">
-                <button class="favorite-btn {% if video.is_favorite %}active{% endif %}" id="favorite-btn" onclick="toggleFavorite()">
+                <button class="favorite-btn {% if video.is_favorite %}active{% endif %}" id="favorite-btn">
                     <i data-lucide="heart" class="w-4 h-4"></i>
                     <span>{% if video.is_favorite %}已收藏{% else %}收藏{% endif %}</span>
                 </button>
@@ -130,7 +131,7 @@
                     {% endfor %}
                 </div>
                 <span class="spacer"></span>
-                <button class="share-btn" onclick="openShareModal()">
+                <button class="share-btn" id="share-btn">
                     <i data-lucide="share-2" class="w-4 h-4"></i>
                     分享
                 </button>
@@ -189,9 +190,9 @@
             <div class="subtitle-selector">
                 <h3 class="section-label"><i data-lucide="subtitles" class="w-4 h-4"></i> 字幕</h3>
                 <div class="subtitle-list" id="subtitle-list">
-                    <button class="subtitle-option active" data-src="" onclick="disableSubtitles()">无字幕</button>
+                    <button class="subtitle-option active" data-src="" id="subtitle-none-btn">无字幕</button>
                     {% for sub in subtitles %}
-                    <button class="subtitle-option" data-src="/subtitle/{{ sub.filename|urlencode }}" onclick="enableSubtitle(this, '{{ sub.label }}')">{{ sub.label }}</button>
+                    <button class="subtitle-option" data-src="/subtitle/{{ sub.filename|urlencode }}" data-label="{{ sub.label }}">{{ sub.label }}</button>
                     {% endfor %}
                 </div>
             </div>
@@ -202,7 +203,7 @@
                 <h3 class="section-label"><i data-lucide="camera" class="w-4 h-4"></i> 截图 ({{ screenshots|length }})</h3>
                 <div class="screenshot-scroll">
                     {% for shot in screenshots %}
-                    <img src="{{ shot.path | escape }}" alt="截图" class="screenshot-thumb" onclick="openScreenshot('{{ shot.path | escape }}')" loading="lazy">
+                    <img src="{{ shot.path | escape }}" alt="截图" class="screenshot-thumb" data-screenshot="{{ shot.path | escape }}" loading="lazy">
                     {% endfor %}
                 </div>
             </div>
@@ -211,7 +212,7 @@
             <div class="thumbnail-section">
                 <div class="section-header">
                     <h3 class="section-label"><i data-lucide="image" class="w-4 h-4"></i> 视频封面</h3>
-                    <button class="refresh-thumb-btn" onclick="refreshThumbnail()">
+                    <button class="refresh-thumb-btn" id="refresh-thumb-btn">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         刷新封面
                     </button>
@@ -227,16 +228,17 @@
                     {% for tag in tags %}
                     <span class="tag-pill" style="background: {{ tag.color }}20; color: {{ tag.color }}; border-color: {{ tag.color }}40;">
                         {{ tag.name }}
-                        <button class="tag-delete" onclick="deletePlayerTag(event, '{{ tag.name }}')">
+                        <button class="tag-delete" data-tag="{{ tag.name }}" aria-label="删除标签 {{ tag.name }}">
                             <i data-lucide="x" class="w-3 h-3"></i>
                         </button>
                     </span>
                     {% endfor %}
                 </div>
                 <div class="tag-manager">
+                    <label for="new-tag-input" class="sr-only">新标签</label>
                     <input type="text" id="new-tag-input" placeholder="添加新标签..."
-                           onkeydown="handlePlayerTagInput(event)">
-                    <button class="add-tag-btn" onclick="addTagToVideo()">
+                           aria-label="新标签">
+                    <button class="add-tag-btn" id="add-tag-btn">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         添加
                     </button>
@@ -247,8 +249,7 @@
                 <h3 class="section-label">
                     <i data-lucide="message-circle" class="w-4 h-4"></i> 评论
                 </h3>
-                <form class="comment-form" id="comment-form"
-                      onsubmit="event.preventDefault(); postComment();">
+                <form class="comment-form" id="comment-form">
                     <textarea id="comment-input"
                               placeholder="说点什么... (Shift+Enter 换行)"
                               maxlength="2000"
@@ -422,13 +423,14 @@
                 subDiv.innerHTML = `
                     <h3 class="section-label"><i data-lucide="subtitles" class="w-4 h-4"></i> 字幕</h3>
                     <div class="subtitle-list" id="subtitle-list">
-                        <button class="subtitle-option active" data-src="" onclick="disableSubtitles()">无字幕</button>
+                        <button class="subtitle-option active" data-src="" id="subtitle-none-btn">无字幕</button>
                         ${data.subtitles.map(sub => `
-                            <button class="subtitle-option" data-src="/subtitle/${encodeURIComponent(sub.filename)}" onclick="enableSubtitle(this, '${escapeAttr(sub.label)}')">${escapeAttr(sub.label)}</button>
+                            <button class="subtitle-option" data-src="/subtitle/${encodeURIComponent(sub.filename)}" data-label="${escapeAttr(sub.label)}">${escapeAttr(sub.label)}</button>
                         `).join('')}
                     </div>
                 `;
                 metaContainer.insertBefore(subDiv, document.querySelector('.screenshot-gallery') || document.querySelector('.thumbnail-section'));
+                wireSubtitleButtons();
             }
 
             // Update thumbnail
@@ -460,15 +462,16 @@
                 bar.innerHTML = `
                     <div class="resume-info">
                         <span>已观看至 ${pct}%</span>
-                        <button onclick="resumePlayback()">
+                        <button id="resume-play-btn">
                             <i data-lucide="play" class="w-4 h-4"></i> 继续播放
                         </button>
-                        <button onclick="dismissResume()">
+                        <button id="resume-dismiss-btn" aria-label="关闭">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
                 `;
                 document.body.insertBefore(bar, document.querySelector('.player-page'));
+                wireResumeBar();
             }
 
             // Update playlist active state
@@ -502,6 +505,12 @@
     }
     function dismissResume() {
         document.getElementById('resume-bar')?.remove();
+    }
+
+    // Wire resume bar buttons (static + dynamically inserted)
+    function wireResumeBar() {
+        document.getElementById('resume-play-btn')?.addEventListener('click', resumePlayback);
+        document.getElementById('resume-dismiss-btn')?.addEventListener('click', dismissResume);
     }
 
     // Theater mode
@@ -560,6 +569,36 @@
             }
         } catch(e) { showToast('操作失败', 'error'); }
     }
+    document.getElementById('favorite-btn')?.addEventListener('click', toggleFavorite);
+    document.getElementById('share-btn')?.addEventListener('click', openShareModal);
+    document.getElementById('refresh-thumb-btn')?.addEventListener('click', refreshThumbnail);
+    document.getElementById('add-tag-btn')?.addEventListener('click', addTagToVideo);
+    document.getElementById('new-tag-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handlePlayerTagInput(e);
+        }
+    });
+
+    // Screenshot thumbs (event delegation, replaces inline onclick)
+    document.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.screenshot-thumb');
+        if (thumb && thumb.dataset.screenshot) {
+            openScreenshot(thumb.dataset.screenshot);
+        }
+    });
+
+    // Player tag delete (event delegation, replaces inline onclick)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tags-container .tag-delete');
+        if (btn) {
+            e.stopPropagation();
+            deletePlayerTag(e, btn.dataset.tag);
+        }
+    });
+
+    // Wire static resume bar (the one in the template at page load)
+    wireResumeBar();
 
     // Rating
     document.querySelectorAll('#rating-stars .star').forEach(star => {
@@ -593,7 +632,8 @@
                 <h3>分享视频</h3>
                 <div class="share-expiry">
                     <span style="font-size:0.85rem;color:var(--text-secondary)">有效期:</span>
-                    <select id="share-hours">
+                    <label for="share-hours" class="sr-only">分享有效期</label>
+                    <select id="share-hours" aria-label="分享有效期">
                         <option value="1">1 小时</option>
                         <option value="24" selected>24 小时</option>
                         <option value="72">3 天</option>
@@ -601,17 +641,22 @@
                     </select>
                 </div>
                 <div class="share-url-box">
-                    <input type="text" id="share-url" readonly placeholder="点击生成链接...">
-                    <button onclick="generateShareLink()">生成</button>
+                    <label for="share-url" class="sr-only">分享链接</label>
+                    <input type="text" id="share-url" readonly placeholder="点击生成链接..." aria-label="分享链接">
+                    <button id="share-generate-btn">生成</button>
                 </div>
                 <div class="share-url-box">
-                    <input type="text" id="share-url-input" readonly>
-                    <button onclick="copyShareLink()"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                    <label for="share-url-input" class="sr-only">分享链接(可复制)</label>
+                    <input type="text" id="share-url-input" readonly aria-label="可复制的分享链接">
+                    <button id="share-copy-btn" aria-label="复制链接"><i data-lucide="copy" class="w-4 h-4"></i></button>
                 </div>
-                <button class="share-close" onclick="this.closest('.share-modal-overlay').remove()">关闭</button>
+                <button class="share-close" id="share-close-btn">关闭</button>
             </div>`;
         document.body.appendChild(overlay);
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#share-generate-btn')?.addEventListener('click', generateShareLink);
+        overlay.querySelector('#share-copy-btn')?.addEventListener('click', copyShareLink);
+        overlay.querySelector('#share-close-btn')?.addEventListener('click', () => overlay.remove());
         if (window.lucide) lucide.createIcons();
     }
 
@@ -669,6 +714,20 @@
         document.querySelector('.subtitle-option[data-src=""]')?.classList.add('active');
         Array.from(document.getElementById('video-player').textTracks).forEach(t => t.mode = 'disabled');
     }
+
+    // Wire subtitle option buttons (event delegation, replaces inline onclick)
+    function wireSubtitleButtons() {
+        document.querySelectorAll('.subtitle-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.dataset.src === '') {
+                    disableSubtitles();
+                } else {
+                    enableSubtitle(btn, btn.dataset.label || '');
+                }
+            });
+        });
+    }
+    wireSubtitleButtons();
 
     // Screenshot lightbox
     function openScreenshot(path) {
