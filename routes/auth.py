@@ -26,6 +26,32 @@ def login_required(f):
     return decorated
 
 
+def admin_required(f):
+    """Decorator to require the logged-in user to be 'admin'.
+
+    Use as an *inner* decorator under @login_required so an unauthenticated
+    request gets 401 first and a non-admin authenticated request gets 403:
+
+        @blueprint.route(...)
+        @login_required
+        @admin_required
+        def destructive_view():
+            ...
+
+    Why this exists: the `collections` and `videos` tables do not have a
+    `user_id` column, so destructive endpoints on those resources can't
+    scope by owner at the SQL level. Restricting to the admin user keeps
+    the multi-tenant attack surface shut until a proper `user_id` schema
+    is introduced.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get('username') != 'admin':
+            return jsonify({'error': 'Admin only'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 def _get_client_ip():
     """Get client IP from request, considering X-Forwarded-For header."""
     if request.headers.get('X-Forwarded-For'):

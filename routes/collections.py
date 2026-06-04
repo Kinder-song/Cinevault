@@ -14,9 +14,27 @@ from routes.videos import get_user_video_path
 """Collections routes for CineVault.
 
 NOTE: The `collections` table in the live database does NOT have a `user_id`
-column, so we cannot scope queries to a user at the SQL level. Access is still
-gated by the @login_required decorator — every caller must be authenticated.
+column, so we cannot scope queries to a user at the SQL level.
+
+Authorization policy:
+  - GET (list, detail)        — any logged-in user
+  - POST/DELETE (mutations)   — admin only (@admin_required)
+
+This keeps the IDOR window shut until the schema gains a proper user_id
+column (or a collection_members join table).
 """
+
+from flask import Blueprint, jsonify, request, session
+import mysql.connector
+
+from services.db_service import with_db_cursor
+from services.video_service import video_dict_from_row
+from utils.logger import video_logger
+from utils.security import validate_video_path
+from routes.auth import login_required, admin_required
+from routes.videos import get_user_video_path
+
+import os
 
 collections_bp = Blueprint('collections', __name__, url_prefix='/api/collections')
 
@@ -46,6 +64,7 @@ def list_collections():
 
 @collections_bp.route('', methods=['POST'])
 @login_required
+@admin_required
 def create_collection():
     """Create a new collection."""
     data = request.get_json()
@@ -72,6 +91,7 @@ def create_collection():
 
 @collections_bp.route('/<int:col_id>', methods=['DELETE'])
 @login_required
+@admin_required
 def delete_collection(col_id):
     """Delete a collection."""
     try:
@@ -94,6 +114,7 @@ def delete_collection(col_id):
 
 @collections_bp.route('/<int:col_id>/videos', methods=['POST'])
 @login_required
+@admin_required
 def add_video_to_collection(col_id):
     """Add a video to a collection."""
     data = request.get_json()
@@ -110,7 +131,6 @@ def add_video_to_collection(col_id):
                 return jsonify({'error': 'Collection not found'}), 404
 
             # Verify video exists in user's video_path
-            from utils.security import validate_video_path
             video_path = get_user_video_path(session['user_id'])
             fp = validate_video_path(video_path, filename)
             if not fp or not os.path.exists(fp):
@@ -140,6 +160,7 @@ def add_video_to_collection(col_id):
 
 @collections_bp.route('/<int:col_id>/videos/<path:filename>', methods=['DELETE'])
 @login_required
+@admin_required
 def remove_video_from_collection(col_id, filename):
     """Remove a video from a collection."""
     try:

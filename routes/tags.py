@@ -1,16 +1,22 @@
-"""Tags routes for CineVault."""
+"""Tags routes for CineVault.
+
+NOTE: Both endpoints are admin-only. The `videos` table has no `user_id`
+column, so we can't scope per-user at the SQL level — restrict to admin
+instead.
+"""
 
 from flask import Blueprint, jsonify, request, session
 
-from services.db_service import get_db_connection, with_db_cursor
+from services.db_service import with_db_cursor
 from utils.logger import video_logger
-from routes.auth import login_required
+from routes.auth import login_required, admin_required
 
 tags_bp = Blueprint('tags', __name__, url_prefix='/api/video')
 
 
 @tags_bp.route('/<path:filename>/tags', methods=['POST'])
 @login_required
+@admin_required
 def add_tag(filename):
     """Add a tag to a video."""
     data = request.get_json()
@@ -61,13 +67,13 @@ def add_tag(filename):
 
 @tags_bp.route('/<path:filename>/tags/<tag_name>', methods=['DELETE'])
 @login_required
+@admin_required
 def remove_tag(filename, tag_name):
     """Remove a tag from a video."""
     try:
         with with_db_cursor() as cursor:
-            # NOTE: videos table does not have a user_id column in the current
-            # schema, so we scope by filename only. The @login_required
-            # decorator already gates access to logged-in users.
+            # NOTE: videos table has no user_id column, so authorization
+            # is enforced at the route level via @admin_required.
             cursor.execute("""
                 DELETE vt FROM video_tags vt
                 JOIN videos v ON v.id = vt.video_id
