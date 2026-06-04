@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ video.title }} - CineVault{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="/static/css/comments.css">
+{% endblock %}
+
 {% block content %}
 <div class="toast-container" id="toast-container"></div>
 
@@ -236,6 +240,23 @@
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         添加
                     </button>
+                </div>
+            </div>
+
+            <div class="comments-section">
+                <h3 class="section-label">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> 评论
+                </h3>
+                <form class="comment-form" id="comment-form"
+                      onsubmit="event.preventDefault(); postComment();">
+                    <textarea id="comment-input"
+                              placeholder="说点什么... (Shift+Enter 换行)"
+                              maxlength="2000"
+                              aria-label="评论内容"></textarea>
+                    <button type="submit">发表</button>
+                </form>
+                <div class="comments-list" id="comments-list">
+                    <!-- populated by comments.js -->
                 </div>
             </div>
         </div>
