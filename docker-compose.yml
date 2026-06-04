@@ -1,0 +1,70 @@
+version: '3.8'
+
+# Production-leaning docker-compose for CineVault.
+#
+# Conventions:
+#   - The web service binds to 127.0.0.1:55300 ONLY. You MUST put a reverse
+#     proxy (Caddy / Nginx) in front for TLS termination and PROXY_FIX_DEPTH=1.
+#   - DB and thumbnail secrets come from .env (which is gitignored).
+#   - VIDEO_ROOTS is mounted read-only; the app is configured to refuse any
+#     video_path outside the configured VIDEO_ROOTS list.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cinevault:latest
+    container_name: cinevault-web
+    restart: unless-stopped
+    # Bind to loopback only. Use a reverse proxy on the host for TLS.
+    ports:
+      - "127.0.0.1:55300:55300"
+    env_file:
+      - .env
+    environment:
+      # Tell the app there is exactly one trusted reverse proxy in front
+      # of it. Override in .env if you skip the proxy.
+      PROXY_FIX_DEPTH: "1"
+    volumes:
+      # Read-only video library. Adjust the host path to match VIDEO_ROOTS.
+      - ${VIDEO_ROOTS:-./video}:/videos:ro
+      # Persisted thumbnail cache.
+      - thumbnails:/app/thumbnails
+      # Persisted Flask-Session filesystem dir.
+      - sessions:/app/sessions
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:55300/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  db:
+    image: mysql:8.0
+    container_name: cinevault-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-cinevault}
+      MYSQL_USER: ${DB_USER:-cinevault}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db_data:
+  thumbnails:
+  sessions:
