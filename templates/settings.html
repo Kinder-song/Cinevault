@@ -4,11 +4,21 @@
 {% block content %}
 <div class="settings-page">
     <div class="settings-container">
+        {% if request.args.get('first_login') != '1' %}
         <a href="/" class="back-btn">
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             返回
         </a>
+        {% endif %}
         <h1 class="settings-title">账户设置</h1>
+
+        {% if request.args.get('first_login') == '1' %}
+        <div class="settings-section">
+            <div class="form-group" style="background: var(--accent-pink); color: var(--bg-deep); padding: 1rem; border-radius: 8px; text-align: center;">
+                <strong>首次登录请修改默认密码</strong>
+            </div>
+        </div>
+        {% endif %}
 
         <div class="settings-section">
             <h2 class="section-title">个人信息</h2>
@@ -56,6 +66,26 @@
 <script type="module" src="/static/js/main.js"></script>
 <script>
     lucide.createIcons();
+
+    const isFirstLogin = {{ 'true' if request.args.get('first_login') == '1' else 'false' }};
+
+    // Prevent navigation on first login without changing password
+    if (isFirstLogin) {
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        });
+
+        // Also block back button by intercepting history
+        history.pushState = new Proxy(history.pushState, {
+            apply: (target, thisArg, args) => {
+                if (isFirstLogin && !confirm('确定要离开吗？离开后将需要重新登录。')) {
+                    return;
+                }
+                return target.apply(thisArg, args);
+            }
+        });
+    }
 
     function showMessage(text, isError = false) {
         const msg = document.getElementById('settings-message');
@@ -125,10 +155,14 @@
             const data = await res.json();
 
             if (data.success) {
-                showMessage('密码更新成功！');
-                document.getElementById('current-password').value = '';
-                document.getElementById('new-password').value = '';
-                document.getElementById('confirm-password').value = '';
+                if (isFirstLogin) {
+                    window.location.href = '/';
+                } else {
+                    showMessage('密码更新成功！');
+                    document.getElementById('current-password').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                }
             } else {
                 showMessage(data.error || '密码更新失败', true);
             }

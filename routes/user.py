@@ -84,13 +84,14 @@ def update_profile():
 
             # Update password
             new_password = data.get('password', '').strip()
+            password_updated = False
             if new_password:
                 verify_password = data.get('verify_password', '').strip()
                 if not verify_password:
                     return jsonify({'error': 'Current password required to change password'}), 400
 
                 cursor.execute(
-                    "SELECT password_hash FROM users WHERE id = %s",
+                    "SELECT password_hash, password_changed FROM users WHERE id = %s",
                     (user_id,)
                 )
                 user = cursor.fetchone()
@@ -99,7 +100,9 @@ def update_profile():
 
                 updates.append("password_hash = %s")
                 params.append(bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode())
-                session.regenerate_id()
+                # Mark password as changed (user completed first-time password change)
+                updates.append("password_changed = TRUE")
+                password_updated = True
 
             # Update video_path
             new_video_path = data.get('video_path', '').strip()
@@ -117,6 +120,11 @@ def update_profile():
                     f"UPDATE users SET {', '.join(updates)} WHERE id = %s",
                     params
                 )
+
+            if password_updated:
+                # First-time password change: keep session and redirect to home
+                # Subsequent changes: clear session and require re-login
+                return jsonify({'success': True, 'password_changed': True})
 
         return jsonify({'success': True})
 

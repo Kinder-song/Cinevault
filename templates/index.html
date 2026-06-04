@@ -103,7 +103,7 @@
                         </button>
                     </span>
                     {% endfor %}
-                    <button class="tag-add-btn" onclick="toggleTagEditor(event, this)">
+                    <button class="tag-add-btn" onclick="event.stopPropagation(); toggleTagEditor(event, this)">
                         <i data-lucide="plus" class="w-3 h-3"></i>
                     </button>
                 </div>

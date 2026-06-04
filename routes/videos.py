@@ -1,37 +1,25 @@
 """Video routes for CineVault - all video-related endpoints."""
 
-from functools import wraps
+import base64
 import os
 
-import bcrypt
 from flask import (
     Blueprint, jsonify, redirect, render_template, request,
-    send_file, send_from_directory, session, Response
+    send_file, session, Response
 )
+from routes.auth import login_required
 
-from services.db_service import get_db_connection, with_db_cursor
+from services.db_service import with_db_cursor
 from services.sync_service import sync_and_get_videos, sync_video_to_db
 from services.video_service import (
-    VIDEO_MIME_TYPES, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS,
+    VIDEO_MIME_TYPES,
     scan_subtitles, scan_screenshots, generate_thumbnail, video_dict_from_row
 )
 from utils.security import validate_video_path
-from utils.formatters import format_duration, format_filesize, format_bitrate, format_fps
+from utils.formatters import format_duration
 from utils.logger import video_logger
 
 videos_bp = Blueprint('videos', __name__, url_prefix='/')
-
-
-def login_required(f):
-    """Decorator to require authentication for a route."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            if request.accept_mimetypes.accept_json:
-                return jsonify({'error': 'Unauthorized'}), 401
-            return redirect('/login')
-        return f(*args, **kwargs)
-    return decorated
 
 
 def get_user_video_path(user_id):
@@ -248,25 +236,34 @@ def stream_video(filename=None):
 @videos_bp.route('/thumbnail/<path:filename>')
 @login_required
 def thumbnail(filename=None):
-    """Serve video thumbnails, generating if needed."""
+    """Serve video thumbnails, auto-generating on first request."""
+    from config import Config
     if not filename:
         return Response(status=404)
 
-    thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
-    thumb_path = os.path.join('thumbnails', thumb_name)
+    safe_basename = os.path.splitext(os.path.basename(filename))[0]
+    thumb_path = os.path.join(Config.THUMBNAIL_DIR, f"{safe_basename}.jpg")
 
+    # Self-heal: if the cached file is missing for any reason, try to regenerate.
     if not os.path.exists(thumb_path):
         video_path = get_user_video_path(session['user_id'])
         fp = validate_video_path(video_path, filename)
         if fp and os.path.exists(fp):
-            generate_thumbnail(os.path.splitext(filename)[0], fp)
+            generate_thumbnail(safe_basename, fp)
 
-    if os.path.exists(thumb_path):
+    if os.path.exists(thumb_path) and os.path.getsize(thumb_path) > 0:
         resp = send_file(thumb_path, mimetype='image/jpeg')
         resp.headers['Cache-Control'] = 'public, max-age=604800'
         return resp
 
-    return Response(status=404)
+    # Be honest: thumbnail is unavailable, return a 1x1 transparent GIF so
+    # the <img> tag doesn't show a broken-image icon in the card grid.
+    transparent_pixel = base64.b64decode(
+        b'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    )
+    resp = Response(transparent_pixel, mimetype='image/gif')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 # ==================== Subtitle ====================
@@ -499,26 +496,51 @@ def set_rating(filename):
 @videos_bp.route('/api/video/<path:filename>/refresh-thumb', methods=['POST'])
 @login_required
 def refresh_thumbnail(filename):
-    """Refresh/regenerate video thumbnail."""
+    """Refresh/regenerate video thumbnail.
+
+    Only updates the DB record if the file is actually written. Returns 500
+    with a clear error if ffmpeg fails — never lies about success.
+    """
+    from config import Config
     video_path = get_user_video_path(session['user_id'])
     fp = validate_video_path(video_path, filename)
     if not fp:
         return jsonify({'success': False, 'error': 'Invalid path'}), 400
+    if not os.path.exists(fp):
+        return jsonify({'success': False, 'error': 'Video file not found'}), 404
 
-    thumb_name = f"{os.path.splitext(filename)[0]}.jpg"
-    thumb_path = os.path.join('thumbnails', thumb_name)
+    safe_basename = os.path.splitext(os.path.basename(filename))[0]
+    thumb_path = os.path.join(Config.THUMBNAIL_DIR, f"{safe_basename}.jpg")
+
+    # Remove old thumbnail so a partial new one doesn't get served stale
     if os.path.exists(thumb_path):
-        os.remove(thumb_path)
+        try:
+            os.remove(thumb_path)
+        except OSError as e:
+            video_logger.warning(f"Could not remove old thumbnail {thumb_path}: {e}")
 
-    new_thumb = generate_thumbnail(os.path.splitext(filename)[0], fp)
+    new_thumb = generate_thumbnail(safe_basename, fp)
 
+    if not new_thumb or not os.path.exists(new_thumb and thumb_path or thumb_path):
+        # Don't update DB with empty path; tell the user exactly what went wrong
+        return jsonify({
+            'success': False,
+            'error': 'ffmpeg failed to generate thumbnail. Check server logs.',
+        }), 500
+
+    # File is on disk — update DB
     try:
         with with_db_cursor() as cursor:
             cursor.execute(
                 "UPDATE videos SET thumbnail_path = %s WHERE filename = %s",
-                (new_thumb or '', filename)
+                (new_thumb, filename)
             )
     except Exception as e:
         video_logger.error(f"Error updating thumbnail path for {filename}: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'File written but DB update failed: {e}',
+            'thumbnail': new_thumb,
+        }), 500
 
-    return jsonify({'success': bool(new_thumb), 'thumbnail': new_thumb})
+    return jsonify({'success': True, 'thumbnail': new_thumb})

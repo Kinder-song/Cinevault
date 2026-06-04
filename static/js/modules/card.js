@@ -89,3 +89,6 @@ export function initCards() {
         }
     });
 }
+
+// Note: createPreviewVideo / destroyPreviewVideo are intentionally NOT
+// exposed on window — they are only used internally by initCards below.

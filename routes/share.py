@@ -46,8 +46,8 @@ def create_share_token(filename):
     try:
         with with_db_cursor() as cursor:
             cursor.execute(
-                "INSERT INTO share_tokens (token, video_id, expires_at) VALUES (%s, %s, %s)",
-                (token, row['id'], expires)
+                "INSERT INTO share_tokens (token, video_filename, expires_at) VALUES (%s, %s, %s)",
+                (token, row['filename'], expires)
             )
 
         return jsonify({
@@ -68,9 +68,9 @@ def shared_video(token):
     try:
         with with_db_cursor() as cursor:
             cursor.execute("""
-                SELECT st.*, v.filename, v.title, v.duration, v.size_bytes
+                SELECT st.*, v.filename, v.title, v.duration, v.file_size
                 FROM share_tokens st
-                JOIN videos v ON v.id = st.video_id
+                JOIN videos v ON v.filename = st.video_filename
                 WHERE st.token = %s
             """, (token,))
             share = cursor.fetchone()

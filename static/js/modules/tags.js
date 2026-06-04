@@ -87,3 +87,9 @@ export async function deleteTag(event, filename, tagName) {
         console.error('Delete tag error:', err);
     }
 }
+
+// Expose tag functions to global scope for inline event handlers
+window.toggleTagEditor = toggleTagEditor;
+window.handleTagInput = handleTagInput;
+window.addTag = addTag;
+window.deleteTag = deleteTag;

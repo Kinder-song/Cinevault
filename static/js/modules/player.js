@@ -122,7 +122,7 @@ export function initPlayer() {
     });
 }
 
-export function saveProgress(video) {
+function saveProgress(video) {
     if (!video || !video.dataset.filename || !video.duration) return;
     const current = Math.floor(video.currentTime);
     if (current <= 0) return;
@@ -134,7 +134,7 @@ export function saveProgress(video) {
     }).catch(() => {});
 }
 
-export function togglePlay(video, btn) {
+function togglePlay(video, btn) {
     if (!btn) return;
     if (video.paused) {
         video.play();
@@ -151,7 +151,7 @@ export function togglePlay(video, btn) {
     }
 }
 
-export function toggleMute(video, btn) {
+function toggleMute(video, btn) {
     if (!btn) return;
     video.muted = !video.muted;
     const icon = btn.querySelector('i');
@@ -159,17 +159,17 @@ export function toggleMute(video, btn) {
     refreshIcons();
 }
 
-export function setVolume(video, val) {
+function setVolume(video, val) {
     video.volume = val / 100;
     const slider = document.querySelector('.volume-slider');
     if (slider) slider.value = val;
 }
 
-export function setSpeed(video, speed) {
+function setSpeed(video, speed) {
     video.playbackRate = parseFloat(speed);
 }
 
-export function toggleFullscreen(video) {
+function toggleFullscreen(video) {
     const wrapper = video.closest('.video-wrapper');
     if (!wrapper) return;
     const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
@@ -188,7 +188,7 @@ export function toggleFullscreen(video) {
     }
 }
 
-export function initFullscreenListener() {
+function initFullscreenListener() {
     const video = document.getElementById('video-player');
     if (!video) return;
     const fsBtn = document.getElementById('fullscreen-btn');
@@ -203,13 +203,13 @@ export function initFullscreenListener() {
     document.addEventListener('webkitfullscreenchange', onFsChange);
 }
 
-export function seek(video, e) {
+function seek(video, e) {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     video.currentTime = pct * video.duration;
 }
 
-export function formatTime(seconds) {
+function formatTime(seconds) {
     if (!seconds || isNaN(seconds)) return '0:00';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -291,3 +291,9 @@ export async function deletePlayerTag(event, tagName) {
         console.error('Delete tag error:', err);
     }
 }
+
+// Expose tag management functions to global scope for inline event handlers
+window.handlePlayerTagInput = handlePlayerTagInput;
+window.addTagToVideo = addTagToVideo;
+window.deletePlayerTag = deletePlayerTag;
+window.renderPlayerTags = renderPlayerTags;

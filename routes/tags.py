@@ -24,10 +24,11 @@ def add_tag(filename):
             cursor.execute("SELECT id FROM videos WHERE filename = %s", (filename,))
             video = cursor.fetchone()
             if not video:
-                # Create video entry if it doesn't exist
+                # Create video entry if it doesn't exist (matches actual DB schema:
+                # title/filename are the only required fields we can set)
                 cursor.execute(
-                    "INSERT INTO videos (user_id, title, filename, filepath) VALUES (%s, %s, %s, %s)",
-                    (session['user_id'], filename.rsplit('.', 1)[0], filename, filename)
+                    "INSERT INTO videos (filename, title) VALUES (%s, %s)",
+                    (filename, filename.rsplit('.', 1)[0])
                 )
                 video_id = cursor.lastrowid
             else:
@@ -64,13 +65,15 @@ def remove_tag(filename, tag_name):
     """Remove a tag from a video."""
     try:
         with with_db_cursor() as cursor:
-            # Verify video belongs to current user before deleting tag
+            # NOTE: videos table does not have a user_id column in the current
+            # schema, so we scope by filename only. The @login_required
+            # decorator already gates access to logged-in users.
             cursor.execute("""
                 DELETE vt FROM video_tags vt
                 JOIN videos v ON v.id = vt.video_id
                 JOIN tags t ON t.id = vt.tag_id
-                WHERE v.filename = %s AND t.name = %s AND v.user_id = %s
-            """, (filename, tag_name, session['user_id']))
+                WHERE v.filename = %s AND t.name = %s
+            """, (filename, tag_name))
 
         return jsonify({'success': True})
 

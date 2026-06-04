@@ -113,66 +113,117 @@ def extract_metadata(filepath: str) -> Dict[str, Any]:
 def generate_thumbnail(filename: str, video_path_full: str) -> Optional[str]:
     """Generate a jpg thumbnail from a video.
 
+    Writes the thumbnail to ``Config.THUMBNAIL_DIR`` (default ``thumbnails/``,
+    relative to the working directory) and returns the same path string that
+    the /thumbnail/<f> route serves from — so the two stay in sync.
+
     Args:
         filename: Base filename for the thumbnail (without extension).
         video_path_full: Full path to the video file.
 
     Returns:
-        Path to generated thumbnail (relative), or None if generation failed.
+        Relative path like ``thumbnails/<basename>.jpg`` on success, or
+        ``None`` if ffmpeg failed / timed out.
     """
-    thumbnail_dir = os.path.join(os.path.dirname(video_path_full), 'thumbnails')
-    thumbnail_path = os.path.join(thumbnail_dir, f"{filename}.jpg")
+    if not filename or not video_path_full:
+        db_logger.error("generate_thumbnail: missing filename or video_path_full")
+        return None
+
+    # Strip any path separators from filename to keep it as a bare basename
+    safe_basename = os.path.basename(filename)
+    thumbnail_dir = Config.THUMBNAIL_DIR
+    thumbnail_path = os.path.join(thumbnail_dir, f"{safe_basename}.jpg")
+    relative_path = f"{thumbnail_dir}/{safe_basename}.jpg"
 
     # Ensure thumbnail directory exists
-    os.makedirs(thumbnail_dir, exist_ok=True)
+    try:
+        os.makedirs(thumbnail_dir, exist_ok=True)
+    except OSError as e:
+        db_logger.error(f"Cannot create thumbnail dir {thumbnail_dir}: {e}")
+        return None
 
-    # Get video duration for thumbnail seek time
+    # Get video duration for seek time. ffmpeg prints info to stderr; we use
+    # the same parsing as the metadata extractor.
     duration = None
     try:
-        cmd = [Config.FFMPEG_PATH, '-i', video_path_full]
-        proc = subprocess.run(
-            cmd,
+        probe = subprocess.run(
+            [Config.FFMPEG_PATH, '-i', video_path_full],
             stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            timeout=15
+            stdout=subprocess.DEVNULL,
+            timeout=15,
         )
-        stderr = proc.stderr.decode('utf-8', errors='replace')
+        stderr = probe.stderr.decode('utf-8', errors='replace')
         duration_match = re.search(
             r'Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})', stderr
         )
         if duration_match:
             h, m, s, cs = duration_match.groups()
             duration = int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100
-    except Exception:
-        pass
+    except subprocess.TimeoutExpired:
+        db_logger.warning(f"Timeout probing duration for {filename}")
+    except FileNotFoundError:
+        db_logger.error(f"ffmpeg not found at {Config.FFMPEG_PATH}")
+        return None
+    except Exception as e:
+        db_logger.warning(f"Error probing duration for {filename}: {e}")
 
     # Calculate seek time: 0.5 to min(10, duration*0.1)
-    if duration:
+    if duration and duration > 0:
         max_seek = min(10, duration * 0.1)
         seek_time = random.uniform(0.5, max(0.5, max_seek))
     else:
         seek_time = 0.5
 
+    # Run the actual frame extraction
     try:
-        cmd = [
-            Config.FFMPEG_PATH,
-            '-ss', str(seek_time),
-            '-i', video_path_full,
-            '-vframes', '1',
-            '-q:v', '2',
-            '-y',
-            thumbnail_path
-        ]
-        subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, timeout=30)
-        if os.path.exists(thumbnail_path):
-            # Return relative path
-            return f"thumbnails/{filename}.jpg"
+        result = subprocess.run(
+            [
+                Config.FFMPEG_PATH,
+                '-ss', str(seek_time),
+                '-i', video_path_full,
+                '-vframes', '1',
+                '-q:v', '2',
+                '-y',
+                thumbnail_path,
+            ],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            err = result.stderr.decode('utf-8', errors='replace')[-300:]
+            db_logger.error(
+                f"ffmpeg failed (rc={result.returncode}) for {filename}: {err}"
+            )
+            # Clean up partial file if any
+            if os.path.exists(thumbnail_path):
+                try:
+                    os.remove(thumbnail_path)
+                except OSError:
+                    pass
+            return None
+
+        if os.path.exists(thumbnail_path) and os.path.getsize(thumbnail_path) > 0:
+            return relative_path
+
+        db_logger.error(
+            f"ffmpeg exited 0 but no thumbnail at {thumbnail_path} for {filename}"
+        )
+        return None
     except subprocess.TimeoutExpired:
         db_logger.warning(f"Timeout generating thumbnail for {filename}")
+        if os.path.exists(thumbnail_path):
+            try:
+                os.remove(thumbnail_path)
+            except OSError:
+                pass
+        return None
+    except FileNotFoundError:
+        db_logger.error(f"ffmpeg not found at {Config.FFMPEG_PATH}")
+        return None
     except Exception as e:
         db_logger.error(f"Error generating thumbnail for {filename}: {e}")
-
-    return None
+        return None
 
 
 def scan_subtitles(filename: str, video_dir: str) -> List[Dict[str, Any]]:
@@ -265,11 +316,13 @@ def video_dict_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
         'fps': format_fps(row.get('fps')),
         'fps_raw': row.get('fps'),
         'thumbnail': row.get('thumbnail_path'),  # thumbnail path for template
-        'favorite': row.get('is_favorite', False),
-        'is_favorite': row.get('is_favorite', False),
+        # DB column is `favorite` and `watched_duration`; expose both old and new
+        # names so Jinja templates using either still work.
+        'favorite': row.get('favorite', False),
+        'is_favorite': row.get('favorite', False),
         'rating': row.get('rating', 0),
-        'progress': row.get('progress'),
-        'watched_duration': format_duration(row.get('progress')),
+        'progress': row.get('watched_duration'),
+        'watched_duration': format_duration(row.get('watched_duration')),
         'last_watched': None,
         'created_at': row.get('created_at'),
         'created': row.get('created_at'),  # alias for template compatibility

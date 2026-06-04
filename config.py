@@ -16,5 +16,8 @@ class Config:
     DB_NAME = os.getenv('DB_NAME', 'video')
     VIDEO_PATH = os.getenv('VIDEO_PATH', './video')
     FFMPEG_PATH = os.getenv('FFMPEG_PATH', './ffmpeg')
+    # Single source of truth for the thumbnail directory. Must match what the
+    # /thumbnail/<f> route serves from. Default keeps historical behavior.
+    THUMBNAIL_DIR = os.getenv('THUMBNAIL_DIR', 'thumbnails')
     SESSION_TYPE = 'filesystem'
     SESSION_FILE_DIR = './sessions'

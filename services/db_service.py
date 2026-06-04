@@ -84,38 +84,45 @@ def with_db_cursor(dictionary: bool = True):
 
 
 def init_database() -> None:
-    """Create all database tables and default admin user."""
+    """Create all database tables and default admin user.
+
+    NOTE: The schema below mirrors the live production database. Keep CREATE TABLE
+    in sync with the column names the rest of the codebase uses:
+      - videos.favorite, videos.watched_duration (NOT is_favorite / progress)
+      - share_tokens.video_filename (NOT video_id)
+    """
     create_tables = [
         """
         CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
-            email VARCHAR(100) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            video_path VARCHAR(1000) DEFAULT NULL,
+            password_changed BOOLEAN DEFAULT FALSE
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS videos (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            title VARCHAR(255) NOT NULL,
             filename VARCHAR(500) NOT NULL,
-            filepath VARCHAR(1000) NOT NULL,
-            filesize BIGINT DEFAULT 0,
+            title VARCHAR(255) NOT NULL,
             duration DECIMAL(10,2) DEFAULT 0,
-            width INT DEFAULT 0,
-            height INT DEFAULT 0,
+            audio_sample_rate INT DEFAULT 0,
+            audio_channels INT DEFAULT 0,
+            audio_codec VARCHAR(50) DEFAULT '',
+            favorite TINYINT(1) DEFAULT 0,
+            rating INT DEFAULT 0,
+            watched_duration INT DEFAULT 0,
             codec VARCHAR(50) DEFAULT '',
             bitrate INT DEFAULT 0,
-            framerate DECIMAL(5,2) DEFAULT 0,
-            size_bytes BIGINT DEFAULT 0,
-            watched_duration DECIMAL(10,2) DEFAULT 0,
-            favorite BOOLEAN DEFAULT FALSE,
-            last_watched TIMESTAMP NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            fps DECIMAL(5,2) DEFAULT 0,
+            height INT DEFAULT 0,
+            width INT DEFAULT 0,
+            file_mtime BIGINT DEFAULT 0,
+            file_size BIGINT DEFAULT 0,
+            size BIGINT DEFAULT 0,
+            thumbnail_path VARCHAR(500) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
         """
@@ -137,11 +144,9 @@ def init_database() -> None:
         """
         CREATE TABLE IF NOT EXISTS collections (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
             name VARCHAR(100) NOT NULL,
             description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
         """
@@ -159,12 +164,9 @@ def init_database() -> None:
         CREATE TABLE IF NOT EXISTS share_tokens (
             id INT AUTO_INCREMENT PRIMARY KEY,
             token VARCHAR(64) UNIQUE NOT NULL,
-            video_id INT,
-            collection_id INT,
+            video_filename VARCHAR(500) NOT NULL,
             expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
-            FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
     ]
@@ -174,47 +176,76 @@ def init_database() -> None:
             cursor.execute(table_sql)
         db_logger.info("Database tables created/verified")
 
-        # Create indexes for better query performance
+        # Add password_changed column if it doesn't exist (migration)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN password_changed BOOLEAN DEFAULT FALSE")
+            db_logger.info("Added password_changed column to users table")
+        except Exception as e:
+            if 'Duplicate column' in str(e) or 'Unknown column' not in str(e):
+                db_logger.debug(f"password_changed column already exists or migration skipped: {e}")
+            else:
+                db_logger.warning(f"Could not add password_changed column: {e}")
+
+        # Add users.video_path column if it doesn't exist (migration)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN video_path VARCHAR(1000) DEFAULT NULL")
+            db_logger.info("Added video_path column to users table")
+        except Exception as e:
+            if 'Duplicate column' in str(e):
+                db_logger.debug(f"video_path column already exists: {e}")
+            else:
+                db_logger.warning(f"Could not add video_path column: {e}")
+
+        # NOTE: MySQL 8.0 does NOT support `CREATE INDEX IF NOT EXISTS`.
+        # Use information_schema check + try/except to be safe.
+        def ensure_index(cur, idx_name, table, cols):
+            cur.execute(
+                "SELECT COUNT(*) FROM information_schema.statistics "
+                "WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s",
+                (table, idx_name),
+            )
+            if cur.fetchone()[0] == 0:
+                cur.execute(f"CREATE INDEX {idx_name} ON {table}({cols})")
+                db_logger.info(f"Created index {idx_name} on {table}({cols})")
+            else:
+                db_logger.debug(f"Index {idx_name} already exists on {table}")
+
         indexes = [
-            "CREATE INDEX IF NOT EXISTS idx_videos_filename ON videos(filename)",
-            "CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id)",
-            "CREATE INDEX IF NOT EXISTS idx_videos_created ON videos(created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_video_tags_video ON video_tags(video_id)",
-            "CREATE INDEX IF NOT EXISTS idx_video_tags_tag ON video_tags(tag_id)",
-            "CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)",
-            "CREATE INDEX IF NOT EXISTS idx_collection_videos_collection ON collection_videos(collection_id)",
+            ("idx_videos_filename", "videos", "filename"),
+            ("idx_videos_created", "videos", "created_at"),
+            ("idx_video_tags_video", "video_tags", "video_id"),
+            ("idx_video_tags_tag", "video_tags", "tag_id"),
+            ("idx_collection_videos_collection", "collection_videos", "collection_id"),
         ]
-        for index_sql in indexes:
+        for idx_name, table, cols in indexes:
             try:
-                cursor.execute(index_sql)
+                ensure_index(cursor, idx_name, table, cols)
             except Exception as e:
-                db_logger.warning(f"Index creation skipped (may already exist): {e}")
+                db_logger.warning(f"Index {idx_name} creation skipped: {e}")
         db_logger.info("Database indexes created/verified")
 
     # Create default admin user if not exists
-    # SECURITY: Generate random password on first creation
+    # Default password: admin123 (bcrypt hashed)
+    # User must change password on first login
     try:
         import bcrypt
-        import secrets
-        import string
 
-        # Generate a random 16-character password
-        alphabet = string.ascii_letters + string.digits
-        admin_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+        # Default admin password
+        admin_password = 'admin123'
         admin_hash = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
         with with_db_cursor() as cursor:
             cursor.execute(
                 """
-                INSERT IGNORE INTO users (username, password_hash)
-                VALUES ('admin', %s)
+                INSERT IGNORE INTO users (username, password_hash, password_changed)
+                VALUES ('admin', %s, FALSE)
                 """,
                 (admin_hash,),
             )
-            # Log the generated password (first time only, when user is created)
+            # Log the default password (first time only, when user is created)
             cursor.execute("SELECT id FROM users WHERE username = 'admin'")
             if cursor.fetchone():
-                db_logger.info(f"Default admin user created. Initial password: {admin_password}")
+                db_logger.info(f"Default admin user created. Default password: {admin_password} (change on first login)")
         db_logger.info("Default admin user created/verified")
     except Exception as e:
         db_logger.error(f"Failed to create default admin user: {e}")
@@ -247,8 +278,8 @@ def get_dashboard_stats() -> Dict[str, Any]:
                     COUNT(*) as total_videos,
                     COALESCE(SUM(duration), 0) as total_duration,
                     COALESCE(SUM(file_size), 0) as total_size,
-                    COALESCE(SUM(progress), 0) as watched_duration,
-                    COALESCE(SUM(CASE WHEN is_favorite = TRUE THEN 1 ELSE 0 END), 0) as favorites
+                    COALESCE(SUM(watched_duration), 0) as watched_duration,
+                    COALESCE(SUM(CASE WHEN favorite = 1 THEN 1 ELSE 0 END), 0) as favorites
                 FROM videos
                 """
             )

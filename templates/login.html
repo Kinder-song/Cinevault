@@ -53,7 +53,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         const data = await res.json();
 
         if (data.success) {
-            window.location.href = '/';
+            if (data.must_change_password) {
+                window.location.href = '/settings?first_login=1';
+            } else {
+                window.location.href = '/';
+            }
         } else {
             errorEl.textContent = data.error || '登录失败';
             errorEl.classList.remove('hidden');

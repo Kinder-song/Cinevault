@@ -11,3 +11,4 @@ video/
 *.webm
 *.mov
 .DS_Store
+.omc/

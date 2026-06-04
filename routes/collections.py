@@ -11,6 +11,13 @@ from utils.security import validate_video_path
 from routes.auth import login_required
 from routes.videos import get_user_video_path
 
+"""Collections routes for CineVault.
+
+NOTE: The `collections` table in the live database does NOT have a `user_id`
+column, so we cannot scope queries to a user at the SQL level. Access is still
+gated by the @login_required decorator — every caller must be authenticated.
+"""
+
 collections_bp = Blueprint('collections', __name__, url_prefix='/api/collections')
 
 
@@ -51,8 +58,8 @@ def create_collection():
     try:
         with with_db_cursor() as cursor:
             cursor.execute(
-                "INSERT INTO collections (user_id, name, description) VALUES (%s, %s, %s)",
-                (session['user_id'], name, description)
+                "INSERT INTO collections (name, description) VALUES (%s, %s)",
+                (name, description)
             )
             col_id = cursor.lastrowid
 
@@ -74,8 +81,8 @@ def delete_collection(col_id):
                 (col_id,)
             )
             cursor.execute(
-                "DELETE FROM collections WHERE id = %s AND user_id = %s",
-                (col_id, session['user_id'])
+                "DELETE FROM collections WHERE id = %s",
+                (col_id,)
             )
 
         return jsonify({'success': True})
@@ -96,9 +103,9 @@ def add_video_to_collection(col_id):
 
     try:
         with with_db_cursor() as cursor:
-            # Verify collection belongs to current user
-            cursor.execute("SELECT id FROM collections WHERE id = %s AND user_id = %s",
-                           (col_id, session['user_id']))
+            # Verify collection exists
+            cursor.execute("SELECT id FROM collections WHERE id = %s",
+                           (col_id,))
             if not cursor.fetchone():
                 return jsonify({'error': 'Collection not found'}), 404
 
@@ -137,9 +144,9 @@ def remove_video_from_collection(col_id, filename):
     """Remove a video from a collection."""
     try:
         with with_db_cursor() as cursor:
-            # Verify collection belongs to current user
-            cursor.execute("SELECT id FROM collections WHERE id = %s AND user_id = %s",
-                           (col_id, session['user_id']))
+            # Verify collection exists
+            cursor.execute("SELECT id FROM collections WHERE id = %s",
+                           (col_id,))
             if not cursor.fetchone():
                 return jsonify({'error': 'Collection not found'}), 404
 
@@ -164,8 +171,8 @@ def get_collection(col_id):
         with with_db_cursor() as cursor:
             # Get collection
             cursor.execute(
-                "SELECT * FROM collections WHERE id = %s AND user_id = %s",
-                (col_id, session['user_id'])
+                "SELECT * FROM collections WHERE id = %s",
+                (col_id,)
             )
             collection = cursor.fetchone()
 

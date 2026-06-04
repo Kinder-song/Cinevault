@@ -248,9 +248,11 @@
 
 {% block scripts %}
 <script type="module" src="/static/js/main.js"></script>
-<script>
+<script type="module">
+    // Note: initPlayer() is called once by main.js's dynamic import below
+    // (we must NOT call it again here, otherwise event listeners get duplicated
+    // and toggle-style actions like play/pause cancel themselves out).
     window.currentTags = {{ tags | tojson }};
-    initVideoPlayer();
     loadPlaylist();
 
     // Load playlist

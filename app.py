@@ -2,40 +2,31 @@
 
 import os
 import logging
-import uuid
 
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request
 from flask_session import Session
 
 from config import Config
 from services.db_service import init_database, init_db_pool
 
+app = Flask(__name__)
+
+# Configure app
+app.config['SECRET_KEY'] = Config.SECRET_KEY
+app.config['SESSION_TYPE'] = Config.SESSION_TYPE
+app.config['SESSION_FILE_DIR'] = Config.SESSION_FILE_DIR
+Session(app)
+
 # Configure root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Create Flask app
-app = Flask(__name__)
-app.config.from_object(Config)
-
-# Configure server-side sessions
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = "./sessions"
-app.config["SESSION_PERMANENT"] = False
-Session(app)
-
-
-# Request ID middleware for logging
-@app.before_request
-def add_request_id():
-    g.request_id = str(uuid.uuid4())
-
 
 # Ensure required directories exist
-for d in ["thumbnails", "sessions", "static/css", "static/js", "cache"]:
+for d in ["thumbnails", "sessions", "static/css", "static/js"]:
     os.makedirs(d, exist_ok=True)
 
 # Initialize database

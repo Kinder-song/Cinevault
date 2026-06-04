@@ -54,17 +54,23 @@ def login():
         return jsonify({'error': 'Database connection failed'}), 500
 
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, password_hash FROM users WHERE username = %s", (username,))
+    cursor.execute("SELECT id, password_hash, password_changed FROM users WHERE username = %s", (username,))
     user = cursor.fetchone()
     cursor.close()
     conn.close()
 
     if user and bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
         login_tracker.record_success(client_ip)
-        session.regenerate_id()  # Prevent session fixation
+        # Clear and reset session to prevent session fixation
+        session.clear()
         session['user_id'] = user['id']
         session['username'] = username
         auth_logger.info(f"Successful login for user: {username}")
+
+        # Check if user needs to change password (first login with default password)
+        if not user.get('password_changed', False):
+            return jsonify({'success': True, 'must_change_password': True})
+
         return jsonify({'success': True})
 
     remaining = login_tracker.record_failure(client_ip)
