@@ -1,4 +1,4 @@
-"""Tags routes for CineVault.
+"""Tags routes for CineVault. Uses TagRepository for all SQL.
 
 NOTE: Both endpoints are admin-only. The `videos` table has no `user_id`
 column, so we can't scope per-user at the SQL level — restrict to admin
@@ -7,6 +7,8 @@ instead.
 
 from flask import Blueprint, jsonify, request, session
 
+from repositories.tag_repo import TagRepository
+from repositories.video_repo import VideoRepository
 from services.db_service import with_db_cursor
 from utils.logger import video_logger
 from routes.auth import login_required, admin_required
@@ -26,37 +28,29 @@ def add_tag(filename):
 
     try:
         with with_db_cursor() as cursor:
-            # Get or create video
-            cursor.execute("SELECT id FROM videos WHERE filename = %s", (filename,))
-            video = cursor.fetchone()
+            videos = VideoRepository(cursor)
+            tags = TagRepository(cursor)
+
+            video = videos.get_by_filename(filename)
             if not video:
-                # Create video entry if it doesn't exist (matches actual DB schema:
-                # title/filename are the only required fields we can set)
-                cursor.execute(
-                    "INSERT INTO videos (filename, title) VALUES (%s, %s)",
-                    (filename, filename.rsplit('.', 1)[0])
+                # Create a placeholder video record
+                video_id = videos.insert(
+                    filename=filename,
+                    title=filename.rsplit('.', 1)[0],
+                    file_size=0,
+                    file_mtime=0,
+                    duration=0,
+                    width=0,
+                    height=0,
+                    codec='',
+                    bitrate=0,
+                    fps=0,
                 )
-                video_id = cursor.lastrowid
             else:
                 video_id = video['id']
 
-            # Get or create tag
-            cursor.execute("SELECT id, color FROM tags WHERE name = %s", (tag_name,))
-            tag = cursor.fetchone()
-            if not tag:
-                cursor.execute("INSERT INTO tags (name) VALUES (%s)", (tag_name,))
-                tag_id = cursor.lastrowid
-            else:
-                tag_id = tag['id']
-
-            # Link video to tag (ignore if already exists)
-            try:
-                cursor.execute(
-                    "INSERT INTO video_tags (video_id, tag_id) VALUES (%s, %s)",
-                    (video_id, tag_id)
-                )
-            except Exception:
-                pass  # Already linked
+            tag_id = tags.get_or_create_tag(tag_name)
+            tags.attach_tag(video_id=video_id, tag_id=tag_id)
 
         return jsonify({'success': True})
 
@@ -74,12 +68,7 @@ def remove_tag(filename, tag_name):
         with with_db_cursor() as cursor:
             # NOTE: videos table has no user_id column, so authorization
             # is enforced at the route level via @admin_required.
-            cursor.execute("""
-                DELETE vt FROM video_tags vt
-                JOIN videos v ON v.id = vt.video_id
-                JOIN tags t ON t.id = vt.tag_id
-                WHERE v.filename = %s AND t.name = %s
-            """, (filename, tag_name))
+            TagRepository(cursor).detach_tag_by_name(filename, tag_name)
 
         return jsonify({'success': True})
 
