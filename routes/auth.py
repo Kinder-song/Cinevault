@@ -53,10 +53,13 @@ def admin_required(f):
 
 
 def _get_client_ip():
-    """Get client IP from request, considering X-Forwarded-For header."""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
+    """Get client IP from request.
+
+    Trusts X-Forwarded-For only when ProxyFix is configured to do so
+    (set PROXY_FIX_DEPTH in .env). When the app is not behind a proxy,
+    XFF is ignored and request.remote_addr is used.
+    """
+    return request.remote_addr or "0.0.0.0"
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])

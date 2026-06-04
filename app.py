@@ -5,11 +5,13 @@ import logging
 
 from flask import Flask, jsonify, render_template, request
 from flask_session import Session
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from services.db_service import init_database, init_db_pool
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=Config.PROXY_FIX_DEPTH)
 
 # Configure app
 app.config['SECRET_KEY'] = Config.SECRET_KEY

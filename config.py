@@ -43,3 +43,7 @@ class Config:
     THUMBNAIL_DIR = os.getenv('THUMBNAIL_DIR', 'thumbnails')
     SESSION_TYPE = 'filesystem'
     SESSION_FILE_DIR = './sessions'
+
+    # SECURITY: How many proxy layers to trust for X-Forwarded-For.
+    # Set to 0 if app is not behind a proxy; 1 for one trusted reverse proxy.
+    PROXY_FIX_DEPTH = int(os.getenv("PROXY_FIX_DEPTH", "0"))
