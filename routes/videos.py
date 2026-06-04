@@ -457,19 +457,25 @@ def get_video_data(filename):
 @login_required
 def save_progress(filename):
     """Save watch progress for a video."""
-    data = request.get_json()
-    progress = data.get('progress', 0)
+    data = request.get_json(silent=True) or {}
+    raw = data.get('progress', 0)
+    try:
+        progress = int(raw)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'progress must be an integer'}), 400
+    if progress < 0 or progress > 86400:  # 1 day max
+        return jsonify({'error': 'progress out of range'}), 400
 
     try:
         with with_db_cursor() as cursor:
             cursor.execute(
                 "UPDATE videos SET watched_duration = %s WHERE filename = %s",
-                (int(progress), filename)
+                (progress, filename)
             )
         return jsonify({'success': True})
     except Exception as e:
-        video_logger.error(f"Error saving progress for {filename}: {e}")
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        video_logger.error("Error saving progress for %s: %s", filename, e)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ==================== API: Favorite ====================
@@ -478,7 +484,7 @@ def save_progress(filename):
 @login_required
 def toggle_favorite(filename):
     """Toggle favorite status for a video."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     val = 1 if data.get('is_favorite') else 0
 
     try:
@@ -489,8 +495,8 @@ def toggle_favorite(filename):
             )
         return jsonify({'success': True})
     except Exception as e:
-        video_logger.error(f"Error toggling favorite for {filename}: {e}")
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        video_logger.error("Error toggling favorite for %s: %s", filename, e)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ==================== API: Rating ====================
@@ -499,8 +505,13 @@ def toggle_favorite(filename):
 @login_required
 def set_rating(filename):
     """Set rating (0-5) for a video."""
-    data = request.get_json()
-    rating = max(0, min(5, int(data.get('rating', 0))))
+    data = request.get_json(silent=True) or {}
+    raw = data.get('rating', 0)
+    try:
+        rating = int(raw)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'rating must be an integer'}), 400
+    rating = max(0, min(5, rating))
 
     try:
         with with_db_cursor() as cursor:
@@ -510,8 +521,8 @@ def set_rating(filename):
             )
         return jsonify({'success': True})
     except Exception as e:
-        video_logger.error(f"Error setting rating for {filename}: {e}")
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        video_logger.error("Error setting rating for %s: %s", filename, e)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ==================== API: Refresh Thumbnail ====================

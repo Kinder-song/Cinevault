@@ -19,11 +19,15 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=Config.PROXY_FIX_DEPTH)
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 app.config['SESSION_TYPE'] = Config.SESSION_TYPE
 app.config['SESSION_FILE_DIR'] = Config.SESSION_FILE_DIR
-# Use the conventional X-CSRF-Token header (flask-seasurf default is X-CSRFToken)
+# SECURITY: keep CSRF on even when callers set TESTING=True (flask-seasurf
+# auto-disables itself under TESTING; the test suite wants CSRF enforced
+# regardless so tests can verify rejection).
+app.config['WTF_CSRF_ENABLED'] = True
+# Use X-CSRF-Token (the conventional name) instead of flask-seasurf's default
+# X-CSRFToken. NOTE: if you put this app behind a reverse proxy, ensure the
+# proxy does NOT normalize or strip custom headers (no underscore-to-hyphen
+# rewriting). main.js sends exactly this string.
 app.config['CSRF_HEADER_NAME'] = 'X-CSRF-Token'
-# Force CSRF on even when callers set TESTING=True (SeaSurf disables itself
-# when TESTING is True; the test suite wants CSRF on regardless).
-app.config['CSRF_DISABLE'] = False
 Session(app)
 csrf = SeaSurf(app)
 
@@ -108,11 +112,12 @@ if __name__ == "__main__":
     serve(app, host="0.0.0.0", port=55300, threads=8, send_bytes=2097152)
 
 
-# CSRF: exempt login (pre-session) and share (public link flow).
-# Login establishes the session, so it can't carry a CSRF token yet. The share
-# blueprint handles the public /share/<token> GET (no auth) plus the auth'd
-# POST /api/video/<file>/share; exempting the whole blueprint keeps the
-# public flow working and the trade-off is documented in the README.
+# CSRF: only the login route is exempt (it establishes the session, so it
+# can't carry a CSRF token yet). The share blueprint does NOT need exemption
+# because:
+#   - GET /share/<token> is a safe HTTP method, SeaSurf ignores it
+#   - POST /api/video/<file>/share is auth'd and the JS auto-attaches the
+#     token via main.js's fetch wrapper
 for _view_func in app.view_functions.values():
-    if _view_func.__module__ in ("routes.auth", "routes.share"):
+    if _view_func.__module__ == "routes.auth":
         csrf.exempt(_view_func)
