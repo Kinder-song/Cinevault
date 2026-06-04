@@ -203,7 +203,13 @@
                 <h3 class="section-label"><i data-lucide="camera" class="w-4 h-4"></i> 截图 ({{ screenshots|length }})</h3>
                 <div class="screenshot-scroll">
                     {% for shot in screenshots %}
-                    <img src="{{ shot.path | escape }}" alt="截图" class="screenshot-thumb" data-screenshot="{{ shot.path | escape }}" loading="lazy">
+                    <img src="{{ shot.path | escape }}" alt="截图"
+                         class="screenshot-thumb"
+                         data-lightbox-src="{{ shot.path | escape }}"
+                         tabindex="0"
+                         role="button"
+                         aria-label="查看截图"
+                         loading="lazy">
                     {% endfor %}
                 </div>
             </div>
@@ -580,13 +586,8 @@
         }
     });
 
-    // Screenshot thumbs (event delegation, replaces inline onclick)
-    document.addEventListener('click', (e) => {
-        const thumb = e.target.closest('.screenshot-thumb');
-        if (thumb && thumb.dataset.screenshot) {
-            openScreenshot(thumb.dataset.screenshot);
-        }
-    });
+    // Screenshot thumbs are wired via static/js/modules/lightbox_wiring.js
+    // (delegated click + Enter/Space → opens an a11y dialog with Escape-to-close).
 
     // Player tag delete (event delegation, replaces inline onclick)
     document.addEventListener('click', (e) => {
@@ -729,14 +730,8 @@
     }
     wireSubtitleButtons();
 
-    // Screenshot lightbox
-    function openScreenshot(path) {
-        const lb = document.createElement('div');
-        lb.className = 'screenshot-lightbox';
-        lb.innerHTML = '<img src="' + path + '" alt="截图">';
-        lb.addEventListener('click', () => lb.remove());
-        document.body.appendChild(lb);
-    }
+    // Screenshot lightbox now lives in static/js/modules/lightbox.js
+    // (keyboard-accessible: Esc closes, Tab focuses close button, role=dialog).
 
     // Thumbnail refresh
     async function refreshThumbnail() {

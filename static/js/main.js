@@ -4,6 +4,7 @@ import { initToast, showToast } from './modules/toast.js';
 import { loadComments } from './modules/comments.js';
 import { toggleTagEditor, deleteTag } from './modules/tags.js';
 import { initVideoErrorHandling } from './modules/video_errors.js';
+import { initLightboxDelegation } from './modules/lightbox_wiring.js';
 import './modules/tags.js';
 
 // Auto-attach CSRF token to all fetch requests
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         import('./modules/player.js').then(m => m.initPlayer?.());
         loadComments();
         initVideoErrorHandling();
+        initLightboxDelegation();
     }
 });
 

@@ -710,27 +710,13 @@
     transform: scale(1.05);
 }
 
-.screenshot-lightbox {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.92);
-    backdrop-filter: blur(20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    cursor: pointer;
-    animation: fadeIn 0.2s var(--ease-out);
+.screenshot-thumb:focus-visible {
+    outline: 2px solid var(--accent-lavender, #89b4e8);
+    outline-offset: 2px;
 }
 
-.screenshot-lightbox img {
-    max-width: 90vw;
-    max-height: 90vh;
-    object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-    animation: scaleIn 0.3s var(--ease-out);
-}
+/* Note: .screenshot-lightbox styles live at the end of this file
+   (see "Screenshot Lightbox — keyboard-accessible dialog"). */
 
 @keyframes fadeIn {
     0% { opacity: 0; }
@@ -1126,3 +1112,30 @@
     font-size: 0.9rem;
 }
 .offline-banner.hidden { display: none; }
+
+/* ==================== Screenshot Lightbox — keyboard-accessible dialog (Plan 5 Task 3) ==================== */
+/* role=dialog overlay. Escape closes; Tab focuses .lightbox-close; click on backdrop also closes. */
+.screenshot-lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+}
+.screenshot-lightbox img {
+    max-width: 95vw; max-height: 95vh;
+    object-fit: contain; border-radius: 8px;
+}
+.lightbox-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--text-on-dark, #ffffff);
+    border: none; border-radius: 50%;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+}
+.lightbox-close:hover { background: rgba(0, 0, 0, 0.85); }
+.lightbox-close:focus-visible {
+    outline: 2px solid var(--accent-lavender, #89b4e8);
+    outline-offset: 2px;
+}
