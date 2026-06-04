@@ -5,6 +5,7 @@ import { loadComments } from './modules/comments.js';
 import { toggleTagEditor, deleteTag } from './modules/tags.js';
 import { initVideoErrorHandling } from './modules/video_errors.js';
 import { initLightboxDelegation } from './modules/lightbox_wiring.js';
+import { maybeShowOnboarding } from './modules/onboarding.js';
 import './modules/tags.js';
 
 // Auto-attach CSRF token to all fetch requests
@@ -54,6 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadComments();
         initVideoErrorHandling();
         initLightboxDelegation();
+    }
+
+    // Show onboarding on first visit (not first-login forced password change)
+    if (!window.location.search.includes('first_login=1')) {
+        maybeShowOnboarding();
     }
 });
 

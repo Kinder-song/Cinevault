@@ -1139,3 +1139,36 @@
     outline: 2px solid var(--accent-lavender, #89b4e8);
     outline-offset: 2px;
 }
+
+/* ==================== Onboarding Overlay (Plan 5 Task 6) ==================== */
+.onboarding-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+}
+.onboarding-modal {
+    background: var(--bg-deep, #1a1a1a);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem; max-width: 480px;
+    color: var(--text-primary, #fff);
+}
+.onboarding-tips {
+    list-style: none; padding: 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+    margin: 1rem 0;
+}
+.onboarding-tips kbd {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 0 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+.onboarding-close {
+    background: var(--accent-pink, #ec4899);
+    color: #000; border: none;
+    border-radius: 8px; padding: 0.5rem 1.5rem;
+    cursor: pointer; float: right;
+}
