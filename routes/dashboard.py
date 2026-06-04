@@ -1,9 +1,11 @@
 """Dashboard routes for CineVault."""
 
-from flask import Blueprint, render_template, session
+from flask import Blueprint, render_template
 
-from services.db_service import get_dashboard_stats
+from repositories.stats_repo import StatsRepository
+from services.db_service import with_db_cursor
 from utils.formatters import format_duration, format_filesize
+from utils.logger import db_logger
 from routes.auth import login_required
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -13,8 +15,26 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @login_required
 def dashboard():
     """Dashboard page with stats."""
-    # Get stats
-    stats = get_dashboard_stats()
+    stats: dict = {
+        "total_videos": 0,
+        "total_duration": 0.0,
+        "total_size": 0,
+        "watched_duration": 0.0,
+        "favorites": 0,
+        "tag_stats": [],
+        "codec_stats": [],
+        "res_stats": {"uhd": 0, "fhd": 0, "hd": 0, "sd": 0},
+    }
+
+    try:
+        with with_db_cursor() as cursor:
+            repo = StatsRepository(cursor)
+            stats.update(repo.get_main_stats())
+            stats["tag_stats"] = repo.get_tag_stats(limit=20)
+            stats["codec_stats"] = repo.get_codec_stats()
+            stats["res_stats"] = repo.get_resolution_stats()
+    except Exception as e:
+        db_logger.error(f"Failed to get dashboard stats: {e}")
 
     # Format duration and size for display
     stats['total_duration_formatted'] = format_duration(int(stats['total_duration']))

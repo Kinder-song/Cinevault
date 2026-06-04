@@ -1,8 +1,10 @@
 """Repository for dashboard aggregations.
 
-The 4 methods correspond to the 4 separate queries that used to live inside
-``services.db_service.get_dashboard_stats``. Each method takes a cursor and
-returns a plain dict so the caller can compose them however it wants.
+The 4 methods correspond to the 4 separate dashboard aggregation queries
+that used to live in ``services.db_service`` (the thin
+``get_dashboard_stats`` wrapper has been removed). Each method takes a
+cursor and returns a plain dict so the caller can compose them however it
+wants.
 """
 from typing import Any, Dict, List
 

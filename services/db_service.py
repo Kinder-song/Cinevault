@@ -1,7 +1,7 @@
 """Database service for CineVault with MySQL connection pooling."""
 
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import mysql.connector
 from mysql.connector import pooling
@@ -249,39 +249,3 @@ def init_database() -> None:
         db_logger.info("Default admin user created/verified")
     except Exception as e:
         db_logger.error(f"Failed to create default admin user: {e}")
-
-
-def get_dashboard_stats() -> Dict[str, Any]:
-    """Get dashboard statistics in a single optimized query.
-
-    Thin wrapper around ``StatsRepository`` — kept for backward compat with
-    ``routes/dashboard.py`` until Task 6.
-
-    Returns:
-        Dictionary with total_videos, total_duration, total_size, watched_duration,
-        favorites, tag_stats, codec_stats, and res_stats.
-    """
-    from repositories.stats_repo import StatsRepository
-
-    stats: Dict[str, Any] = {
-        "total_videos": 0,
-        "total_duration": 0.0,
-        "total_size": 0,
-        "watched_duration": 0.0,
-        "favorites": 0,
-        "tag_stats": [],
-        "codec_stats": [],
-        "res_stats": {"uhd": 0, "fhd": 0, "hd": 0, "sd": 0},
-    }
-
-    try:
-        with with_db_cursor() as cursor:
-            repo = StatsRepository(cursor)
-            stats.update(repo.get_main_stats())
-            stats["tag_stats"] = repo.get_tag_stats(limit=20)
-            stats["codec_stats"] = repo.get_codec_stats()
-            stats["res_stats"] = repo.get_resolution_stats()
-    except Exception as e:
-        db_logger.error(f"Failed to get dashboard stats: {e}")
-
-    return stats

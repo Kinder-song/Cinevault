@@ -5,7 +5,6 @@ from services.db_service import (
     get_db_connection,
     init_database,
     with_db_cursor,
-    get_dashboard_stats,
 )
 
 __all__ = [
@@ -13,5 +12,4 @@ __all__ = [
     "get_db_connection",
     "init_database",
     "with_db_cursor",
-    "get_dashboard_stats",
 ]
