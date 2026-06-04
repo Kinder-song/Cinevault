@@ -68,6 +68,24 @@ app.register_blueprint(user_bp)
 from services.thumbnail_worker import start_worker
 start_worker()
 
+# Optional filesystem watcher (ENABLE_FS_WATCHER=1 to enable)
+if os.getenv("ENABLE_FS_WATCHER", "0") == "1":
+    from services.sync_service import _cache_registry
+    from services.fs_watcher import FSWatcher
+    from utils.logger import sync_logger
+
+    def _on_new_file(path: str) -> None:
+        """Invalidate the LibraryCache entry for the new file."""
+        filename = os.path.basename(path)
+        cache = _cache_registry.get(Config.VIDEO_PATH)
+        if cache is not None:
+            cache.invalidate(filename)
+            sync_logger.info("FSWatcher invalidated cache for %s", filename)
+
+    _fs_watcher = FSWatcher(Config.VIDEO_PATH, callback=_on_new_file)
+    _fs_watcher.start()
+    sync_logger.info("FSWatcher enabled on %s", Config.VIDEO_PATH)
+
 
 # Global error handlers
 @app.errorhandler(404)
