@@ -1,16 +1,3 @@
-"""Collections routes for CineVault."""
-
-import os
-from flask import Blueprint, jsonify, request, session
-import mysql.connector
-
-from services.db_service import get_db_connection, with_db_cursor
-from services.video_service import video_dict_from_row
-from utils.logger import video_logger
-from utils.security import validate_video_path
-from routes.auth import login_required
-from routes.videos import get_user_video_path
-
 """Collections routes for CineVault.
 
 NOTE: The `collections` table in the live database does NOT have a `user_id`
@@ -24,17 +11,18 @@ This keeps the IDOR window shut until the schema gains a proper user_id
 column (or a collection_members join table).
 """
 
-from flask import Blueprint, jsonify, request, session
-import mysql.connector
+import os
 
+from flask import Blueprint, jsonify, request, session
+
+from repositories.collection_repo import CollectionRepository
+from repositories.video_repo import VideoRepository
 from services.db_service import with_db_cursor
 from services.video_service import video_dict_from_row
 from utils.logger import video_logger
 from utils.security import validate_video_path
 from routes.auth import login_required, admin_required
 from routes.videos import get_user_video_path
-
-import os
 
 collections_bp = Blueprint('collections', __name__, url_prefix='/api/collections')
 
@@ -45,15 +33,7 @@ def list_collections():
     """List all collections with video count."""
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("""
-                SELECT c.id, c.name, c.description, c.created_at,
-                       COUNT(cv.video_id) as video_count
-                FROM collections c
-                LEFT JOIN collection_videos cv ON c.id = cv.collection_id
-                GROUP BY c.id
-                ORDER BY c.name
-            """)
-            collections = cursor.fetchall()
+            collections = CollectionRepository(cursor).list_all()
 
         return jsonify({'collections': collections})
 
@@ -76,11 +56,9 @@ def create_collection():
 
     try:
         with with_db_cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO collections (name, description) VALUES (%s, %s)",
-                (name, description)
+            col_id = CollectionRepository(cursor).create(
+                name=name, description=description
             )
-            col_id = cursor.lastrowid
 
         return jsonify({'success': True, 'id': col_id})
 
@@ -96,14 +74,7 @@ def delete_collection(col_id):
     """Delete a collection."""
     try:
         with with_db_cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM collection_videos WHERE collection_id = %s",
-                (col_id,)
-            )
-            cursor.execute(
-                "DELETE FROM collections WHERE id = %s",
-                (col_id,)
-            )
+            CollectionRepository(cursor).delete(collection_id=col_id)
 
         return jsonify({'success': True})
 
@@ -124,10 +95,12 @@ def add_video_to_collection(col_id):
 
     try:
         with with_db_cursor() as cursor:
+            collections = CollectionRepository(cursor)
+            videos_repo = VideoRepository(cursor)
+
             # Verify collection exists
-            cursor.execute("SELECT id FROM collections WHERE id = %s",
-                           (col_id,))
-            if not cursor.fetchone():
+            existing = collections.get_with_videos(collection_id=col_id)
+            if not existing:
                 return jsonify({'error': 'Collection not found'}), 404
 
             # Verify video exists in user's video_path
@@ -137,19 +110,14 @@ def add_video_to_collection(col_id):
                 return jsonify({'error': 'Video not found'}), 404
 
             # Get video id
-            cursor.execute("SELECT id FROM videos WHERE filename = %s", (filename,))
-            video = cursor.fetchone()
+            video = videos_repo.get_by_filename(filename)
             if not video:
                 return jsonify({'error': 'Video not found'}), 404
 
-            # Add to collection
-            try:
-                cursor.execute(
-                    "INSERT INTO collection_videos (collection_id, video_id) VALUES (%s, %s)",
-                    (col_id, video['id'])
-                )
-            except mysql.connector.IntegrityError:
-                pass  # Already in collection
+            # Add to collection (repo swallows IntegrityError -> duplicate)
+            collections.add_video(
+                collection_id=col_id, video_id=video['id']
+            )
 
         return jsonify({'success': True})
 
@@ -165,17 +133,16 @@ def remove_video_from_collection(col_id, filename):
     """Remove a video from a collection."""
     try:
         with with_db_cursor() as cursor:
+            collections = CollectionRepository(cursor)
+
             # Verify collection exists
-            cursor.execute("SELECT id FROM collections WHERE id = %s",
-                           (col_id,))
-            if not cursor.fetchone():
+            existing = collections.get_with_videos(collection_id=col_id)
+            if not existing:
                 return jsonify({'error': 'Collection not found'}), 404
 
-            cursor.execute("""
-                DELETE cv FROM collection_videos cv
-                JOIN videos v ON v.id = cv.video_id
-                WHERE cv.collection_id = %s AND v.filename = %s
-            """, (col_id, filename))
+            collections.remove_video(
+                collection_id=col_id, filename=filename
+            )
 
         return jsonify({'success': True})
 
@@ -190,26 +157,16 @@ def get_collection(col_id):
     """Get a collection with its videos."""
     try:
         with with_db_cursor() as cursor:
-            # Get collection
-            cursor.execute(
-                "SELECT * FROM collections WHERE id = %s",
-                (col_id,)
+            result = CollectionRepository(cursor).get_with_videos(
+                collection_id=col_id
             )
-            collection = cursor.fetchone()
 
-            if not collection:
+            if not result:
                 return jsonify({'error': 'Collection not found'}), 404
 
-            # Get videos in collection
-            cursor.execute("""
-                SELECT v.* FROM videos v
-                JOIN collection_videos cv ON v.id = cv.video_id
-                WHERE cv.collection_id = %s
-                ORDER BY cv.position, v.filename
-            """, (col_id,))
-            videos = [video_dict_from_row(r) for r in cursor.fetchall()]
+            result['videos'] = [video_dict_from_row(v) for v in result['videos']]
 
-        return jsonify({'collection': collection, 'videos': videos})
+        return jsonify(result)
 
     except Exception as e:
         video_logger.error(f"Error getting collection {col_id}: {e}")
