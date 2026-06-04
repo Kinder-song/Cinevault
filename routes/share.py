@@ -3,9 +3,10 @@
 import datetime
 import secrets
 
-from flask import Blueprint, jsonify, redirect, render_template, request, session
+from flask import Blueprint, jsonify, render_template, request, session
 
-from services.db_service import get_db_connection, with_db_cursor
+from repositories.share_repo import ShareRepository
+from services.db_service import with_db_cursor
 from services.video_service import video_dict_from_row
 from utils.logger import video_logger
 from routes.auth import login_required
@@ -52,9 +53,8 @@ def create_share_token(filename):
 
     try:
         with with_db_cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO share_tokens (token, video_filename, expires_at) VALUES (%s, %s, %s)",
-                (token, row['filename'], expires)
+            ShareRepository(cursor).create(
+                token=token, video_filename=row['filename'], expires_at=expires,
             )
 
         return jsonify({
@@ -74,13 +74,7 @@ def shared_video(token):
     """Access a shared video (no login required)."""
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("""
-                SELECT st.*, v.filename, v.title, v.duration, v.file_size
-                FROM share_tokens st
-                JOIN videos v ON v.filename = st.video_filename
-                WHERE st.token = %s
-            """, (token,))
-            share = cursor.fetchone()
+            share = ShareRepository(cursor).get_by_token(token)
 
         if not share:
             return "Invalid or expired share link", 404
