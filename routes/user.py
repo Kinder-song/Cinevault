@@ -3,7 +3,8 @@
 import bcrypt
 from flask import Blueprint, jsonify, redirect, render_template, request, session
 
-from services.db_service import get_db_connection, with_db_cursor
+from repositories.user_repo import UserRepository
+from services.db_service import with_db_cursor
 from utils.security import validate_video_path_against_roots
 from utils.logger import video_logger
 from routes.auth import login_required
@@ -17,11 +18,7 @@ def get_profile():
     """Get user profile."""
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("""
-                SELECT id, username, video_path
-                FROM users WHERE id = %s
-            """, (session['user_id'],))
-            user = cursor.fetchone()
+            user = UserRepository(cursor).get_by_id(session['user_id'])
 
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -41,11 +38,7 @@ def settings_page():
     """Render settings page."""
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("""
-                SELECT id, username, video_path
-                FROM users WHERE id = %s
-            """, (session['user_id'],))
-            user = cursor.fetchone()
+            user = UserRepository(cursor).get_by_id(session['user_id'])
 
         if not user:
             return redirect('/login')
@@ -64,44 +57,38 @@ def update_profile():
     data = request.get_json()
     user_id = session['user_id']
 
+    # Build kwargs to pass to UserRepository.update_profile
+    update_kwargs: dict = {}
+    password_updated = False
+
     try:
         with with_db_cursor() as cursor:
-            updates = []
-            params = []
+            users = UserRepository(cursor)
 
             # Update username
             new_username = data.get('username', '').strip()
             if new_username:
-                cursor.execute(
-                    "SELECT id FROM users WHERE username = %s AND id != %s",
-                    (new_username, user_id)
-                )
-                if cursor.fetchone():
+                if users.username_exists(new_username, exclude_id=user_id):
                     return jsonify({'error': 'Username already exists'}), 400
-                updates.append("username = %s")
-                params.append(new_username)
+                update_kwargs['username'] = new_username
                 session['username'] = new_username
 
             # Update password
             new_password = data.get('password', '').strip()
-            password_updated = False
             if new_password:
                 verify_password = data.get('verify_password', '').strip()
                 if not verify_password:
                     return jsonify({'error': 'Current password required to change password'}), 400
 
-                cursor.execute(
-                    "SELECT password_hash, password_changed FROM users WHERE id = %s",
-                    (user_id,)
-                )
-                user = cursor.fetchone()
+                user = users.get_by_id(user_id)
                 if not bcrypt.checkpw(verify_password.encode(), user['password_hash'].encode()):
                     return jsonify({'error': 'Current password incorrect'}), 400
 
-                updates.append("password_hash = %s")
-                params.append(bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode())
+                update_kwargs['password_hash'] = bcrypt.hashpw(
+                    new_password.encode(), bcrypt.gensalt()
+                ).decode()
                 # Mark password as changed (user completed first-time password change)
-                updates.append("password_changed = TRUE")
+                update_kwargs['password_changed'] = True
                 password_updated = True
 
             # Update video_path — must be inside an allowed root
@@ -112,17 +99,12 @@ def update_profile():
                     return jsonify({
                         'error': 'video_path must be an existing directory inside an allowed root'
                     }), 400
-                updates.append("video_path = %s")
-                params.append(validated)
+                update_kwargs['video_path'] = validated
                 session['video_path'] = validated
 
-            # Apply updates
-            if updates:
-                params.append(user_id)
-                cursor.execute(
-                    f"UPDATE users SET {', '.join(updates)} WHERE id = %s",
-                    params
-                )
+            # Apply updates via the repository
+            if update_kwargs:
+                users.update_profile(user_id=user_id, **update_kwargs)
 
             if password_updated:
                 # First-time password change: keep session and redirect to home
