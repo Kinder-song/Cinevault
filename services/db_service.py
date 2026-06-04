@@ -254,10 +254,15 @@ def init_database() -> None:
 def get_dashboard_stats() -> Dict[str, Any]:
     """Get dashboard statistics in a single optimized query.
 
+    Thin wrapper around ``StatsRepository`` — kept for backward compat with
+    ``routes/dashboard.py`` until Task 6.
+
     Returns:
         Dictionary with total_videos, total_duration, total_size, watched_duration,
         favorites, tag_stats, codec_stats, and res_stats.
     """
+    from repositories.stats_repo import StatsRepository
+
     stats: Dict[str, Any] = {
         "total_videos": 0,
         "total_duration": 0.0,
@@ -271,77 +276,11 @@ def get_dashboard_stats() -> Dict[str, Any]:
 
     try:
         with with_db_cursor() as cursor:
-            # Main stats query
-            cursor.execute(
-                """
-                SELECT
-                    COUNT(*) as total_videos,
-                    COALESCE(SUM(duration), 0) as total_duration,
-                    COALESCE(SUM(file_size), 0) as total_size,
-                    COALESCE(SUM(watched_duration), 0) as watched_duration,
-                    COALESCE(SUM(CASE WHEN favorite = 1 THEN 1 ELSE 0 END), 0) as favorites
-                FROM videos
-                """
-            )
-            row = cursor.fetchone()
-            if row:
-                stats["total_videos"] = int(row["total_videos"])
-                stats["total_duration"] = float(row["total_duration"])
-                stats["total_size"] = int(row["total_size"])
-                stats["watched_duration"] = float(row["watched_duration"])
-                stats["favorites"] = int(row["favorites"])
-
-            # Tag stats (top 20)
-            cursor.execute(
-                """
-                SELECT t.name, t.color, COUNT(vt.video_id) as count
-                FROM tags t
-                LEFT JOIN video_tags vt ON t.id = vt.tag_id
-                GROUP BY t.id, t.name, t.color
-                ORDER BY count DESC
-                LIMIT 20
-                """
-            )
-            stats["tag_stats"] = [
-                {"name": r["name"], "color": r["color"], "count": int(r["count"])}
-                for r in cursor.fetchall()
-            ]
-
-            # Codec stats
-            cursor.execute(
-                """
-                SELECT codec, COUNT(*) as count
-                FROM videos
-                WHERE codec IS NOT NULL AND codec != ''
-                GROUP BY codec
-                ORDER BY count DESC
-                """
-            )
-            stats["codec_stats"] = [
-                {"codec": r["codec"], "count": int(r["count"])}
-                for r in cursor.fetchall()
-            ]
-
-            # Resolution stats
-            cursor.execute(
-                """
-                SELECT
-                    SUM(CASE WHEN width >= 3840 THEN 1 ELSE 0 END) as uhd,
-                    SUM(CASE WHEN width >= 1920 AND width < 3840 THEN 1 ELSE 0 END) as fhd,
-                    SUM(CASE WHEN width >= 1280 AND width < 1920 THEN 1 ELSE 0 END) as hd,
-                    SUM(CASE WHEN width < 1280 THEN 1 ELSE 0 END) as sd
-                FROM videos
-                """
-            )
-            res_row = cursor.fetchone()
-            if res_row:
-                stats["res_stats"] = {
-                    "uhd": int(res_row["uhd"] or 0),
-                    "fhd": int(res_row["fhd"] or 0),
-                    "hd": int(res_row["hd"] or 0),
-                    "sd": int(res_row["sd"] or 0),
-                }
-
+            repo = StatsRepository(cursor)
+            stats.update(repo.get_main_stats())
+            stats["tag_stats"] = repo.get_tag_stats(limit=20)
+            stats["codec_stats"] = repo.get_codec_stats()
+            stats["res_stats"] = repo.get_resolution_stats()
     except Exception as e:
         db_logger.error(f"Failed to get dashboard stats: {e}")
 
