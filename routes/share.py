@@ -35,13 +35,20 @@ def create_share_token(filename):
     # Generate token
     token = secrets.token_hex(16)
 
-    # Parse expiry hours from request
+    # Parse and clamp expiry hours to [1, 168] (1 hour - 7 days)
     if request.is_json:
-        hours = request.get_json().get('hours', 24)
+        try:
+            hours = int(request.get_json().get('hours', 24))
+        except (TypeError, ValueError):
+            return jsonify({"error": "hours must be an integer"}), 400
     else:
         hours = 24
+    if hours < 1 or hours > 168:
+        return jsonify({"error": "hours must be between 1 and 168"}), 400
 
-    expires = datetime.datetime.utcnow() + datetime.timedelta(hours=int(hours))
+    expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+        hours=hours
+    )
 
     try:
         with with_db_cursor() as cursor:
@@ -78,7 +85,9 @@ def shared_video(token):
         if not share:
             return "Invalid or expired share link", 404
 
-        if share['expires_at'] and share['expires_at'] < datetime.datetime.utcnow():
+        if share['expires_at'] and share['expires_at'] < datetime.datetime.now(
+            datetime.timezone.utc
+        ).replace(tzinfo=None):
             return "Share link has expired", 410
 
         video = video_dict_from_row(share)
