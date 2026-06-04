@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}观看历史 - CineVault{% endblock %}
+
+{% block content %}
+<div class="history-page">
+    <h1 class="page-title">观看历史</h1>
+    {% if items %}
+    <div class="history-grid">
+        {% for item in items %}
+        <a href="/video/{{ item.filename|urlencode }}" class="history-item">
+            {% if item.thumbnail_path %}
+            <img src="/thumbnail/{{ item.filename|urlencode }}" alt="{{ item.title }}" loading="lazy">
+            {% endif %}
+            <div class="history-item-info">
+                <h3>{{ item.title }}</h3>
+                <p>{{ item.watched_at }} · {{ (item.watched_seconds / 60)|round }} 分钟</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">还没有观看记录</p>
+    {% endif %}
+</div>
+{% endblock %}

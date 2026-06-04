@@ -14,6 +14,7 @@ import os
 
 from flask import Blueprint, jsonify, request, session
 
+from repositories.history_repo import HistoryRepository
 from repositories.tag_repo import TagRepository
 from repositories.video_repo import VideoRepository
 from routes.auth import admin_required, login_required
@@ -156,7 +157,16 @@ def save_progress(filename):
 
     try:
         with with_db_cursor() as cursor:
-            VideoRepository(cursor).update_progress(filename, progress)
+            videos = VideoRepository(cursor)
+            history = HistoryRepository(cursor)
+            video = videos.get_by_filename(filename)
+            if video:
+                history.record(
+                    user_id=session['user_id'],
+                    video_id=video['id'],
+                    watched_seconds=progress,
+                )
+            videos.update_progress(filename, progress)
         return jsonify({'success': True})
     except Exception as e:
         video_logger.error("Error saving progress for %s: %s", filename, e)

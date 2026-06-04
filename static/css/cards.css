@@ -1,5 +1,18 @@
 /* ==================== Cards & Grid ==================== */
 
+/* Empty-state message used by pages like /history, /collections, etc. */
+.empty-state {
+    text-align: center;
+    color: var(--text-secondary, #888);
+    padding: 3rem 1rem;
+    font-size: 1rem;
+    background: var(--bg-glass, rgba(255, 255, 255, 0.04));
+    border: 1px dashed var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: 12px;
+    margin: 2rem auto;
+    max-width: 480px;
+}
+
 /* ==================== Homepage ==================== */
 .home-page {
     padding: 2rem;
