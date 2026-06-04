@@ -188,36 +188,6 @@
     animation-duration: 35s;
 }
 
-.blob-2 {
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%);
-    top: 30%;
-    right: -150px;
-    animation-delay: -12s;
-    animation-duration: 28s;
-}
-
-.blob-3 {
-    width: 450px;
-    height: 450px;
-    background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%);
-    bottom: 5%;
-    left: 15%;
-    animation-delay: -20s;
-    animation-duration: 38s;
-}
-
-.blob-4 {
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, var(--accent-purple) 0%, transparent 70%);
-    bottom: -50px;
-    right: 20%;
-    animation-delay: -12s;
-    animation-duration: 26s;
-}
-
 @keyframes blob-drift {
     0%, 100% { transform: translate(0, 0) scale(1); }
     25% { transform: translate(40px, -30px) scale(1.05); }
