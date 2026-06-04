@@ -521,8 +521,13 @@ def refresh_thumbnail(filename):
 
     new_thumb = generate_thumbnail(safe_basename, fp)
 
-    if not new_thumb or not os.path.exists(new_thumb and thumb_path or thumb_path):
-        # Don't update DB with empty path; tell the user exactly what went wrong
+    # Defend against an unexpected return value: only accept paths inside
+    # the configured thumbnail directory.
+    if (
+        not new_thumb
+        or not new_thumb.startswith(Config.THUMBNAIL_DIR + os.sep)
+        or not os.path.exists(new_thumb)
+    ):
         return jsonify({
             'success': False,
             'error': 'ffmpeg failed to generate thumbnail. Check server logs.',
