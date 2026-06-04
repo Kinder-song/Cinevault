@@ -100,3 +100,38 @@ class LoginAttemptTracker:
         with self._lock:
             if ip in self._attempts:
                 del self._attempts[ip]
+
+
+def validate_video_path_against_roots(candidate_path: str) -> str | None:
+    """Validate that ``candidate_path`` is a directory inside one of
+    ``Config.VIDEO_ROOTS``.
+
+    Resolves symlinks via ``os.path.realpath`` to prevent escape. Returns
+    the realpath on success, or ``None`` if the path is outside all
+    allowed roots, does not exist, or is not a directory.
+
+    Args:
+        candidate_path: Absolute or relative path the user wants to set as
+            their video_path. Must be a directory (not a file).
+
+    Returns:
+        Resolved absolute realpath if the path is a directory inside an
+        allowed root, otherwise ``None``.
+    """
+    if not candidate_path:
+        return None
+    from config import Config  # local import to avoid circular at module load
+
+    try:
+        real = os.path.realpath(candidate_path)
+    except (OSError, ValueError):
+        return None
+
+    if not os.path.isdir(real):
+        return None
+
+    for root in Config.VIDEO_ROOTS:
+        root_real = os.path.realpath(root)
+        if real == root_real or real.startswith(root_real + os.sep):
+            return real
+    return None

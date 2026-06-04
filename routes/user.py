@@ -4,7 +4,7 @@ import bcrypt
 from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from services.db_service import get_db_connection, with_db_cursor
-from utils.security import validate_video_path
+from utils.security import validate_video_path_against_roots
 from utils.logger import video_logger
 from routes.auth import login_required
 
@@ -104,14 +104,17 @@ def update_profile():
                 updates.append("password_changed = TRUE")
                 password_updated = True
 
-            # Update video_path
+            # Update video_path — must be inside an allowed root
             new_video_path = data.get('video_path', '').strip()
             if new_video_path:
-                if not validate_video_path(new_video_path, ''):
-                    return jsonify({'error': 'Invalid video path'}), 400
+                validated = validate_video_path_against_roots(new_video_path)
+                if not validated:
+                    return jsonify({
+                        'error': 'video_path must be an existing directory inside an allowed root'
+                    }), 400
                 updates.append("video_path = %s")
-                params.append(new_video_path)
-                session['video_path'] = new_video_path
+                params.append(validated)
+                session['video_path'] = validated
 
             # Apply updates
             if updates:
