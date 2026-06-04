@@ -169,6 +169,31 @@ def init_database() -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS comments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            video_id INT NOT NULL,
+            user_id INT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_comments_video (video_id),
+            INDEX idx_comments_user (user_id),
+            FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS watch_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            video_id INT NOT NULL,
+            watched_seconds INT DEFAULT 0,
+            watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_history_user_time (user_id, watched_at),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+        )
+        """,
     ]
 
     with with_db_cursor() as cursor:
