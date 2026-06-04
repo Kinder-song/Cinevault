@@ -1,15 +1,11 @@
 {% extends "base.html" %}
-{% block title %}404 - Page Not Found{% endblock %}
+{% block title %}页面未找到 - CineVault{% endblock %}
 {% block content %}
-<div class="shared-page">
-    <div class="shared-container">
-        <div class="shared-header">
-            <h1 class="shared-title">404</h1>
-            <p class="shared-subtitle">Page not found</p>
-            <a href="/" class="back-btn" style="margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
-                <i data-lucide="home" class="w-4 h-4"></i> Return Home
-            </a>
-        </div>
-    </div>
+<div class="error-page">
+    <h1 class="error-code">404</h1>
+    <p class="error-message">找不到这个视频了</p>
+    <a href="/" class="error-link">
+        <i data-lucide="home" aria-hidden="true"></i> 回到首页
+    </a>
 </div>
 {% endblock %}

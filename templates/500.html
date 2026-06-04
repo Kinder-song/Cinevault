@@ -1,15 +1,22 @@
 {% extends "base.html" %}
-{% block title %}500 - Internal Server Error{% endblock %}
+{% block title %}服务器错误 - CineVault{% endblock %}
 {% block content %}
-<div class="shared-page">
-    <div class="shared-container">
-        <div class="shared-header">
-            <h1 class="shared-title">500</h1>
-            <p class="shared-subtitle">Internal server error</p>
-            <a href="/" class="back-btn" style="margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
-                <i data-lucide="home" class="w-4 h-4"></i> Return Home
-            </a>
-        </div>
-    </div>
+<div class="error-page">
+    <h1 class="error-code">500</h1>
+    <p class="error-message">服务器开小差了，稍后再试</p>
+    <button type="button" class="error-link" id="error-retry-btn">
+        <i data-lucide="refresh-cw" aria-hidden="true"></i> 重试
+    </button>
+    <a href="/" class="error-link" style="margin-left: 0.5rem;">
+        <i data-lucide="home" aria-hidden="true"></i> 回到首页
+    </a>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('error-retry-btn')?.addEventListener('click', function () {
+        window.location.reload();
+    });
+</script>
 {% endblock %}

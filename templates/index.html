@@ -58,6 +58,14 @@
     </div>
 
     <div class="video-grid" id="video-grid">
+        {% if not videos %}
+        <div class="empty-state">
+            <i data-lucide="film" class="empty-icon" aria-hidden="true"></i>
+            <h2>视频库是空的</h2>
+            <p>把视频文件放进 <code>video/</code> 目录，刷新页面即可自动入库。</p>
+            <p>支持的格式：MP4、MKV、WebM、MOV、AVI、M4V</p>
+        </div>
+        {% endif %}
         {% for video in videos %}
         <a class="video-card"
            href="/video/{{ video.filename|urlencode }}"
