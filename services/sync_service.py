@@ -10,6 +10,7 @@ from services.video_service import (
     video_dict_from_row,
 )
 from services.db_service import get_db_connection, with_db_cursor
+from services.library_cache import LibraryCache
 from utils.logger import sync_logger
 
 
@@ -126,57 +127,58 @@ def get_all_videos_from_db() -> List[Dict[str, Any]]:
         return []
 
 
+# Module-level cache registry, keyed by absolute video_dir path.
+_cache_registry: dict = {}
+
+
+def _get_cache(video_path: str) -> LibraryCache:
+    """Get or create a LibraryCache for the given video directory."""
+    cache = _cache_registry.get(video_path)
+    if cache is None:
+        cache = LibraryCache(video_path)
+        _cache_registry[video_path] = cache
+    return cache
+
+
 def sync_and_get_videos(video_path: str) -> List[Dict[str, Any]]:
     """Sync video directory with database and return all videos.
 
-    Args:
-        video_path: Path to the video directory.
-
-    Returns:
-        List of all videos from database after sync.
+    Performs an incremental scan: only files whose ``(size, mtime)`` changed
+    since the last call are ffmpeg-probed. The LibraryCache is the source of
+    truth for "what was scanned last time" — a file is skipped when its
+    cached ``(size, mtime)`` still matches the current scan. The DB is
+    only consulted to verify the file made it in (defends against prior
+    sync failures). Use ``_cache_registry.clear()`` to force a full
+    resync (e.g., in tests).
     """
-    files_on_disk: Dict[str, str] = {}
-
-    # Scan video directory for video files
-    if os.path.isdir(video_path):
-        for entry in os.scandir(video_path):
-            if entry.is_file():
-                ext = os.path.splitext(entry.name)[1].lower()
-                if ext in VIDEO_EXTENSIONS:
-                    files_on_disk[entry.name] = entry.path
+    cache = _get_cache(video_path)
+    # Snapshot the previous cache state before scan() overwrites it
+    previous_state = dict(cache._cache)
+    files_on_disk = cache.scan()
 
     sync_logger.info(f"Found {len(files_on_disk)} video files on disk")
 
-    # Get existing DB records
-    existing_records: Dict[str, Dict[str, Any]] = {}
+    # Get existing DB filenames to detect prior-sync failures
+    db_filenames: set = set()
     try:
         with with_db_cursor() as cursor:
-            cursor.execute("SELECT filename, file_size, file_mtime FROM videos")
+            cursor.execute("SELECT filename FROM videos")
             for row in cursor.fetchall():
-                existing_records[row['filename']] = row
+                db_filenames.add(row["filename"])
     except Exception as e:
-        sync_logger.error(f"Error fetching existing DB records: {e}")
+        sync_logger.error("Error fetching existing DB records: %s", e)
 
-    # Determine which files need sync
-    for filename, filepath in files_on_disk.items():
-        file_stat = os.stat(filepath)
-        file_size = file_stat.st_size
-        file_mtime = file_stat.st_mtime
+    for filename, meta in files_on_disk.items():
+        prev = previous_state.get(filename)
+        unchanged = (
+            prev is not None
+            and prev["size"] == meta["size"]
+            and prev["mtime"] == meta["mtime"]
+        )
+        if unchanged and filename in db_filenames:
+            sync_logger.debug("Skipping unchanged file: %s", filename)
+            continue
+        sync_logger.info("Syncing: %s", filename)
+        sync_video_to_db(filename, meta["path"])
 
-        needs_sync = True
-        if filename in existing_records:
-            db_record = existing_records[filename]
-            db_size = db_record.get('file_size')
-            db_mtime = db_record.get('file_mtime', 0)
-
-            # Skip if file size and mtime match
-            if db_size == file_size and db_mtime == int(file_mtime):
-                needs_sync = False
-                sync_logger.debug(f"Skipping unchanged file: {filename}")
-
-        if needs_sync:
-            sync_logger.info(f"Syncing: {filename}")
-            sync_video_to_db(filename, filepath)
-
-    # Return all videos from DB
     return get_all_videos_from_db()
