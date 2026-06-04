@@ -30,7 +30,7 @@ def get_profile():
 
     except Exception as e:
         video_logger.error(f"Error getting user profile: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # Settings page route (no prefix, so it's at /settings)
@@ -133,4 +133,4 @@ def update_profile():
 
     except Exception as e:
         video_logger.error(f"Error updating user profile: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500

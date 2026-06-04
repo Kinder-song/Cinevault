@@ -469,7 +469,7 @@ def save_progress(filename):
         return jsonify({'success': True})
     except Exception as e:
         video_logger.error(f"Error saving progress for {filename}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 # ==================== API: Favorite ====================
@@ -490,7 +490,7 @@ def toggle_favorite(filename):
         return jsonify({'success': True})
     except Exception as e:
         video_logger.error(f"Error toggling favorite for {filename}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 # ==================== API: Rating ====================
@@ -511,7 +511,7 @@ def set_rating(filename):
         return jsonify({'success': True})
     except Exception as e:
         video_logger.error(f"Error setting rating for {filename}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 # ==================== API: Refresh Thumbnail ====================

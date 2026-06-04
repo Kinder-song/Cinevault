@@ -62,7 +62,7 @@ def add_tag(filename):
 
     except Exception as e:
         video_logger.error(f"Error adding tag to video {filename}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @tags_bp.route('/<path:filename>/tags/<tag_name>', methods=['DELETE'])
@@ -85,4 +85,4 @@ def remove_tag(filename, tag_name):
 
     except Exception as e:
         video_logger.error(f"Error removing tag from video {filename}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500

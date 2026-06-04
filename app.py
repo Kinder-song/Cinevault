@@ -9,6 +9,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from services.db_service import init_database, init_db_pool
+from utils.errors import handle_route_exception
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=Config.PROXY_FIX_DEPTH)
@@ -56,25 +57,22 @@ app.register_blueprint(user_bp)
 # Global error handlers
 @app.errorhandler(404)
 def not_found(e):
-    if request.accept_mimetypes.accept_json:
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
         return jsonify({"error": "Not found"}), 404
     return render_template("404.html"), 404
 
 
 @app.errorhandler(500)
 def internal_error(e):
-    logger.error(f"Internal error: {e}")
-    if request.accept_mimetypes.accept_json:
+    logger.exception("Internal error: %s", e)
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
         return jsonify({"error": "Internal server error"}), 500
     return render_template("500.html"), 500
 
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    logger.exception(f"Unhandled exception: {e}")
-    if request.accept_mimetypes.accept_json:
-        return jsonify({"error": "An unexpected error occurred"}), 500
-    return render_template("500.html"), 500
+    return handle_route_exception(e, logger)
 
 
 # Health check endpoint

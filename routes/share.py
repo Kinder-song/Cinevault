@@ -59,7 +59,7 @@ def create_share_token(filename):
 
     except Exception as e:
         video_logger.error(f"Error creating share token for {filename}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @share_bp.route('/share/<token>')

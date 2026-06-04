@@ -59,7 +59,7 @@ def list_collections():
 
     except Exception as e:
         video_logger.error(f"Error listing collections: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @collections_bp.route('', methods=['POST'])
@@ -86,7 +86,7 @@ def create_collection():
 
     except Exception as e:
         video_logger.error(f"Error creating collection: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @collections_bp.route('/<int:col_id>', methods=['DELETE'])
@@ -109,7 +109,7 @@ def delete_collection(col_id):
 
     except Exception as e:
         video_logger.error(f"Error deleting collection {col_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @collections_bp.route('/<int:col_id>/videos', methods=['POST'])
@@ -155,7 +155,7 @@ def add_video_to_collection(col_id):
 
     except Exception as e:
         video_logger.error(f"Error adding video to collection {col_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @collections_bp.route('/<int:col_id>/videos/<path:filename>', methods=['DELETE'])
@@ -181,7 +181,7 @@ def remove_video_from_collection(col_id, filename):
 
     except Exception as e:
         video_logger.error(f"Error removing video from collection {col_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @collections_bp.route('/<int:col_id>', methods=['GET'])
@@ -213,4 +213,4 @@ def get_collection(col_id):
 
     except Exception as e:
         video_logger.error(f"Error getting collection {col_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
