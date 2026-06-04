@@ -24,17 +24,8 @@ IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
 SUBTITLE_EXTENSIONS = {'.srt', '.vtt', '.ass'}
 
 
-def extract_metadata(filepath: str) -> Dict[str, Any]:
-    """Extract video metadata using ffmpeg.
-
-    Args:
-        filepath: Full path to the video file.
-
-    Returns:
-        Dictionary with duration, width, height, fps, bitrate, codec,
-        audio_codec, audio_channels, audio_sample_rate.
-    """
-    result = {
+def _empty_metadata() -> Dict[str, Any]:
+    return {
         'duration': None,
         'width': None,
         'height': None,
@@ -46,68 +37,86 @@ def extract_metadata(filepath: str) -> Dict[str, Any]:
         'audio_sample_rate': None,
     }
 
-    try:
-        cmd = [Config.FFMPEG_PATH, '-i', filepath]
-        proc = subprocess.run(
-            cmd,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            timeout=15
-        )
-        stderr = proc.stderr.decode('utf-8', errors='replace')
 
-        # Parse Duration
-        duration_match = re.search(r'Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})', stderr)
-        if duration_match:
-            h, m, s, cs = duration_match.groups()
-            result['duration'] = int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100
+def _parse_ffmpeg_stderr(stderr: str) -> Dict[str, Any]:
+    """Parse ffmpeg stderr output for video metadata.
 
-        # Parse Video stream info - resolution appears before [SAR in stream line
-        video_stream_match = re.search(
-            r'(\d+)x(\d+)\s+\[SAR',
-            stderr
-        )
-        if video_stream_match:
-            result['width'] = int(video_stream_match.group(1))
-            result['height'] = int(video_stream_match.group(2))
+    Returns a dict with keys: duration, width, height, fps, bitrate, codec,
+    audio_codec, audio_channels, audio_sample_rate. Missing values are None.
+    """
+    result = _empty_metadata()
 
-        # Parse codec and fps from video stream
-        codec_match = re.search(r'Video:\s*(\w+)', stderr)
-        if codec_match:
-            result['codec'] = codec_match.group(1)
+    # Parse Duration
+    duration_match = re.search(r'Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})', stderr)
+    if duration_match:
+        h, m, s, cs = duration_match.groups()
+        result['duration'] = int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100
 
-        fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', stderr)
-        if fps_match:
-            result['fps'] = float(fps_match.group(1))
+    # Parse resolution (e.g., "1920x1080 [SAR")
+    video_stream_match = re.search(r'(\d+)x(\d+)\s+\[SAR', stderr)
+    if video_stream_match:
+        result['width'] = int(video_stream_match.group(1))
+        result['height'] = int(video_stream_match.group(2))
 
-        # Parse bitrate from "bitrate: 87643 kb/s"
-        bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', stderr)
-        if bitrate_match:
-            result['bitrate'] = int(bitrate_match.group(1))
+    # Codec
+    codec_match = re.search(r'Video:\s*(\w+)', stderr)
+    if codec_match:
+        result['codec'] = codec_match.group(1)
 
-        # Parse Audio stream info
-        audio_stream_match = re.search(
-            r'Stream.*Audio:\s*(\w+).*?(?:(\d+)\s*Hz.*?)?(?:,?\s*(\d+)\s*channels)?',
-            stderr
-        )
-        if audio_stream_match:
-            result['audio_codec'] = audio_stream_match.group(1)
-            if audio_stream_match.group(2):
-                result['audio_sample_rate'] = int(audio_stream_match.group(2))
-            if audio_stream_match.group(3):
-                result['audio_channels'] = int(audio_stream_match.group(3))
-        else:
-            # Try simpler audio pattern
-            audio_match = re.search(r'Stream.*Audio:\s*(\w+)', stderr)
-            if audio_match:
-                result['audio_codec'] = audio_match.group(1)
+    # FPS
+    fps_match = re.search(r'(\d+(?:\.\d+)?)\s*fps', stderr)
+    if fps_match:
+        result['fps'] = float(fps_match.group(1))
 
-    except subprocess.TimeoutExpired:
-        db_logger.warning(f"Timeout extracting metadata from {filepath}")
-    except Exception as e:
-        db_logger.error(f"Error extracting metadata from {filepath}: {e}")
+    # Bitrate
+    bitrate_match = re.search(r'bitrate:\s*(\d+)\s*kb/s', stderr)
+    if bitrate_match:
+        result['bitrate'] = int(bitrate_match.group(1))
+
+    # Audio
+    audio_stream_match = re.search(
+        r'Stream.*Audio:\s*(\w+).*?(?:(\d+)\s*Hz.*?)?(?:,?\s*(\d+)\s*channels)?',
+        stderr,
+    )
+    if audio_stream_match:
+        result['audio_codec'] = audio_stream_match.group(1)
+        if audio_stream_match.group(2):
+            result['audio_sample_rate'] = int(audio_stream_match.group(2))
+        if audio_stream_match.group(3):
+            result['audio_channels'] = int(audio_stream_match.group(3))
+    else:
+        audio_match = re.search(r'Stream.*Audio:\s*(\w+)', stderr)
+        if audio_match:
+            result['audio_codec'] = audio_match.group(1)
 
     return result
+
+
+def extract_metadata(filepath: str) -> Dict[str, Any]:
+    """Extract video metadata using ffmpeg.
+
+    Args:
+        filepath: Full path to the video file.
+
+    Returns:
+        Dictionary with duration, width, height, fps, bitrate, codec,
+        audio_codec, audio_channels, audio_sample_rate.
+    """
+    try:
+        proc = subprocess.run(
+            [Config.FFMPEG_PATH, '-i', filepath],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            timeout=15,
+        )
+        stderr = proc.stderr.decode('utf-8', errors='replace')
+        return _parse_ffmpeg_stderr(stderr)
+    except subprocess.TimeoutExpired:
+        db_logger.warning(f"Timeout extracting metadata from {filepath}")
+        return _empty_metadata()
+    except Exception as e:
+        db_logger.error(f"Error extracting metadata from {filepath}: {e}")
+        return _empty_metadata()
 
 
 def generate_thumbnail(filename: str, video_path_full: str) -> Optional[str]:
@@ -224,6 +233,92 @@ def generate_thumbnail(filename: str, video_path_full: str) -> Optional[str]:
     except Exception as e:
         db_logger.error(f"Error generating thumbnail for {filename}: {e}")
         return None
+
+
+def probe_and_thumbnail(
+    filepath: str, safe_basename: str
+) -> tuple[Dict[str, Any], str | None]:
+    """Run ffmpeg ONCE to extract a thumbnail and parse its stderr for metadata.
+
+    This replaces the previous 3-call pattern (probe duration + extract
+    metadata + extract frame) with a single ffmpeg invocation. The frame
+    extraction command's stderr contains all the info we need.
+
+    Args:
+        filepath: Absolute path to the source video.
+        safe_basename: Filename without extension (used for thumbnail name).
+
+    Returns:
+        (metadata_dict, thumbnail_relative_path) on success.
+        ({}, None) if ffmpeg failed or timed out.
+    """
+    thumbnail_dir = Config.THUMBNAIL_DIR
+    thumbnail_path = os.path.join(thumbnail_dir, f"{safe_basename}.jpg")
+    relative_path = f"{thumbnail_dir}/{safe_basename}.jpg"
+
+    try:
+        os.makedirs(thumbnail_dir, exist_ok=True)
+    except OSError as e:
+        db_logger.error("Cannot create thumbnail dir %s: %s", thumbnail_dir, e)
+        return ({}, None)
+
+    # Seek to 5 seconds (fast keyframe-based seek; ffmpeg will pick the
+    # nearest earlier keyframe for MP4/MKV). If the video is shorter than
+    # 5s, the seek will be clamped automatically.
+    seek_time = 5
+
+    try:
+        proc = subprocess.run(
+            [
+                Config.FFMPEG_PATH,
+                "-ss", str(seek_time),
+                "-i", filepath,
+                "-vframes", "1",
+                "-q:v", "2",
+                "-y", thumbnail_path,
+            ],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        db_logger.warning("Timeout generating thumbnail for %s", safe_basename)
+        if os.path.exists(thumbnail_path):
+            try:
+                os.remove(thumbnail_path)
+            except OSError:
+                pass
+        return ({}, None)
+    except FileNotFoundError:
+        db_logger.error("ffmpeg not found at %s", Config.FFMPEG_PATH)
+        return ({}, None)
+    except Exception as e:
+        db_logger.error("Error running ffmpeg for %s: %s", safe_basename, e)
+        return ({}, None)
+
+    if proc.returncode != 0:
+        err = proc.stderr.decode("utf-8", errors="replace")[-300:]
+        db_logger.error(
+            "ffmpeg failed (rc=%s) for %s: %s", proc.returncode, safe_basename, err
+        )
+        if os.path.exists(thumbnail_path):
+            try:
+                os.remove(thumbnail_path)
+            except OSError:
+                pass
+        return ({}, None)
+
+    if not (os.path.exists(thumbnail_path) and os.path.getsize(thumbnail_path) > 0):
+        db_logger.error(
+            "ffmpeg exited 0 but no thumbnail at %s for %s",
+            thumbnail_path, safe_basename,
+        )
+        return ({}, None)
+
+    # The same stderr output has all the metadata. Reuse the existing parser.
+    stderr_text = proc.stderr.decode("utf-8", errors="replace")
+    metadata = _parse_ffmpeg_stderr(stderr_text)
+    return metadata, relative_path
 
 
 def scan_subtitles(filename: str, video_dir: str) -> List[Dict[str, Any]]:

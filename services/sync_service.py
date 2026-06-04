@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from services.video_service import (
     VIDEO_EXTENSIONS,
-    extract_metadata,
-    generate_thumbnail,
     video_dict_from_row,
 )
 from services.db_service import get_db_connection, with_db_cursor
@@ -50,11 +48,11 @@ def sync_video_to_db(filename: str, video_path_full: str) -> Optional[Dict[str, 
                     sync_logger.debug(f"Video unchanged, skipping: {filename}")
                     return video_dict_from_row(row)
 
-            # Needs sync - extract metadata and generate thumbnail
-            metadata = extract_metadata(video_path_full)
-            thumbnail_path = generate_thumbnail(
+            # Needs sync - extract metadata and thumbnail in ONE ffmpeg call
+            from services.video_service import probe_and_thumbnail
+            metadata, thumbnail_path = probe_and_thumbnail(
+                video_path_full,
                 os.path.splitext(filename)[0],
-                video_path_full
             )
 
             title = os.path.splitext(filename)[0]

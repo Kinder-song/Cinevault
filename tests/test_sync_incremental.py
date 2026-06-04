@@ -12,14 +12,15 @@ def test_sync_skips_unchanged_files(tmp_path):
     """A second call with no file changes must not invoke ffmpeg metadata probe."""
     (tmp_path / "a.mp4").write_bytes(b"\x00" * 1024)
 
-    with patch("services.sync_service.extract_metadata") as meta, \
-         patch("services.sync_service.generate_thumbnail") as thumb, \
+    with patch("services.video_service.probe_and_thumbnail") as probe, \
          patch("services.sync_service.get_all_videos_from_db") as db:
-        meta.return_value = {
-            "duration": 10, "width": 1920, "height": 1080,
-            "codec": "h264", "bitrate": 1000, "fps": 30.0,
-        }
-        thumb.return_value = "thumbnails/a.jpg"
+        probe.return_value = (
+            {
+                "duration": 10, "width": 1920, "height": 1080,
+                "codec": "h264", "bitrate": 1000, "fps": 30.0,
+            },
+            "thumbnails/a.jpg",
+        )
         db.return_value = [
             {
                 "id": 1, "filename": "a.mp4", "title": "a",
@@ -31,15 +32,15 @@ def test_sync_skips_unchanged_files(tmp_path):
             }
         ]
 
-        # First sync: should call extract_metadata
+        # First sync: should call probe_and_thumbnail
         sync_and_get_videos(str(tmp_path))
-        first_count = meta.call_count
+        first_count = probe.call_count
         assert first_count >= 1, f"Expected first sync to probe, got {first_count}"
 
         # Second sync: nothing changed, should NOT call again
-        meta.reset_mock()
+        probe.reset_mock()
         sync_and_get_videos(str(tmp_path))
-        second_count = meta.call_count
+        second_count = probe.call_count
         assert second_count == 0, f"Second sync should skip, called {second_count} times"
 
 
@@ -48,14 +49,15 @@ def test_sync_probes_modified_files(tmp_path):
     path = tmp_path / "a.mp4"
     path.write_bytes(b"\x00" * 1024)
 
-    with patch("services.sync_service.extract_metadata") as meta, \
-         patch("services.sync_service.generate_thumbnail") as thumb, \
+    with patch("services.video_service.probe_and_thumbnail") as probe, \
          patch("services.sync_service.get_all_videos_from_db") as db:
-        meta.return_value = {
-            "duration": 10, "width": 1920, "height": 1080,
-            "codec": "h264", "bitrate": 1000, "fps": 30.0,
-        }
-        thumb.return_value = "thumbnails/a.jpg"
+        probe.return_value = (
+            {
+                "duration": 10, "width": 1920, "height": 1080,
+                "codec": "h264", "bitrate": 1000, "fps": 30.0,
+            },
+            "thumbnails/a.jpg",
+        )
         db.return_value = [
             {
                 "id": 1, "filename": "a.mp4", "title": "a",
@@ -68,7 +70,7 @@ def test_sync_probes_modified_files(tmp_path):
         ]
 
         sync_and_get_videos(str(tmp_path))
-        first_count = meta.call_count
+        first_count = probe.call_count
 
         # Modify the file (changes size and mtime)
         path.write_bytes(b"\x00" * 2048)
@@ -77,7 +79,7 @@ def test_sync_probes_modified_files(tmp_path):
         future = time.time() + 5
         os.utime(path, (future, future))
 
-        meta.reset_mock()
+        probe.reset_mock()
         sync_and_get_videos(str(tmp_path))
-        second_count = meta.call_count
+        second_count = probe.call_count
         assert second_count >= 1, f"Modified file should trigger re-probe, got {second_count}"
