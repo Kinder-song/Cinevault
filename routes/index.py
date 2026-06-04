@@ -8,6 +8,7 @@ the available collections (used by the filter dropdown).
 from flask import Blueprint, render_template, request, session
 
 from repositories.collection_repo import CollectionRepository
+from repositories.history_repo import HistoryRepository
 from repositories.tag_repo import TagRepository
 from services.db_service import with_db_cursor
 from services.sync_service import sync_and_get_videos
@@ -39,10 +40,14 @@ def index():
 
     tags_by_video: dict = {}
     collections: list = []
+    recent: list = []
     try:
         with with_db_cursor() as cursor:
             tags_by_video = TagRepository(cursor).list_tags_by_video()
             collections = CollectionRepository(cursor).list_all()
+            recent = HistoryRepository(cursor).list_recent(
+                user_id=session["user_id"], limit=6
+            )
     except Exception as e:
         video_logger.error(f"Error loading tags/collections for index: {e}")
 
@@ -55,4 +60,5 @@ def index():
         per_page=per_page,
         total=total,
         collections=collections,
+        recent=recent,
     )

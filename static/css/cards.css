@@ -639,3 +639,61 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ==================== Recently Watched Rail ==================== */
+.recent-section {
+    margin-bottom: 1.5rem;
+}
+
+.recent-section .section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary, #fff);
+    margin-bottom: 0.75rem;
+}
+
+.recent-rail {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    scrollbar-width: thin;
+}
+
+.recent-card {
+    flex: 0 0 180px;
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-glass, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08));
+    transition: transform 0.2s var(--ease-out, ease);
+}
+
+.recent-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-accent, rgba(255, 255, 255, 0.18));
+}
+
+.recent-card img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+}
+
+.recent-title {
+    display: block;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

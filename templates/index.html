@@ -3,6 +3,21 @@
 
 {% block content %}
 <div class="home-page">
+    {% if recent %}
+    <section class="recent-section">
+        <h2 class="section-label">
+            <i data-lucide="history" class="w-4 h-4"></i> 最近观看
+        </h2>
+        <div class="recent-rail">
+            {% for item in recent %}
+            <a href="/video/{{ item.filename|urlencode }}" class="recent-card">
+                <img src="/thumbnail/{{ item.filename|urlencode }}" alt="{{ item.title }}" loading="lazy">
+                <span class="recent-title">{{ item.title }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
     <div class="filter-bar">
         <div class="filter-left">
             <div class="search-box">
