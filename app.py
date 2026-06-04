@@ -64,6 +64,10 @@ app.register_blueprint(share_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(user_bp)
 
+# Start the background thumbnail worker
+from services.thumbnail_worker import start_worker
+start_worker()
+
 
 # Global error handlers
 @app.errorhandler(404)

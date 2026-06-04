@@ -7,7 +7,7 @@ from flask import (
     Blueprint, jsonify, redirect, render_template, request,
     send_file, session, Response
 )
-from routes.auth import login_required
+from routes.auth import admin_required, login_required
 
 from services.db_service import with_db_cursor
 from services.sync_service import sync_and_get_videos, sync_video_to_db
@@ -529,57 +529,27 @@ def set_rating(filename):
 
 @videos_bp.route('/api/video/<path:filename>/refresh-thumb', methods=['POST'])
 @login_required
+@admin_required
 def refresh_thumbnail(filename):
-    """Refresh/regenerate video thumbnail.
+    """Queue a thumbnail regeneration job. Returns immediately with job_id.
 
-    Only updates the DB record if the file is actually written. Returns 500
-    with a clear error if ffmpeg fails — never lies about success.
+    Status is queried via ``GET /api/sync/thumbnail-status/<job_id>``.
     """
-    from config import Config
+    from services.thumbnail_worker import submit_thumbnail_job
     video_path = get_user_video_path(session['user_id'])
     fp = validate_video_path(video_path, filename)
     if not fp:
-        return jsonify({'success': False, 'error': 'Invalid path'}), 400
+        return jsonify({"success": False, "error": "Invalid path"}), 400
     if not os.path.exists(fp):
-        return jsonify({'success': False, 'error': 'Video file not found'}), 404
+        return jsonify({"success": False, "error": "Video file not found"}), 404
 
-    safe_basename = os.path.splitext(os.path.basename(filename))[0]
-    thumb_path = os.path.join(Config.THUMBNAIL_DIR, f"{safe_basename}.jpg")
+    job_id = submit_thumbnail_job(fp)
+    return jsonify({"success": True, "job_id": job_id, "status": "pending"})
 
-    # Remove old thumbnail so a partial new one doesn't get served stale
-    if os.path.exists(thumb_path):
-        try:
-            os.remove(thumb_path)
-        except OSError as e:
-            video_logger.warning(f"Could not remove old thumbnail {thumb_path}: {e}")
 
-    new_thumb = generate_thumbnail(safe_basename, fp)
-
-    # Defend against an unexpected return value: only accept paths inside
-    # the configured thumbnail directory.
-    if (
-        not new_thumb
-        or not new_thumb.startswith(Config.THUMBNAIL_DIR + os.sep)
-        or not os.path.exists(new_thumb)
-    ):
-        return jsonify({
-            'success': False,
-            'error': 'ffmpeg failed to generate thumbnail. Check server logs.',
-        }), 500
-
-    # File is on disk — update DB
-    try:
-        with with_db_cursor() as cursor:
-            cursor.execute(
-                "UPDATE videos SET thumbnail_path = %s WHERE filename = %s",
-                (new_thumb, filename)
-            )
-    except Exception as e:
-        video_logger.error(f"Error updating thumbnail path for {filename}: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'File written but DB update failed: {e}',
-            'thumbnail': new_thumb,
-        }), 500
-
-    return jsonify({'success': True, 'thumbnail': new_thumb})
+@videos_bp.route('/api/sync/thumbnail-status/<job_id>', methods=['GET'])
+@login_required
+def thumbnail_status(job_id):
+    """Get the status of a thumbnail regeneration job."""
+    from services.thumbnail_worker import get_thumbnail_status
+    return jsonify({"status": get_thumbnail_status(job_id)})
