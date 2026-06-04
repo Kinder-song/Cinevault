@@ -290,23 +290,46 @@ def serve_subtitle(filename=None):
 
 # ==================== Screenshots ====================
 
-@videos_bp.route('/screenshot/')
+@videos_bp.route('/screenshot/', defaults={'filename': None})
 @videos_bp.route('/screenshot/<path:filename>')
 @login_required
-def serve_screenshot(filename=None):
-    """Serve screenshot/image files."""
+def serve_screenshot(filename):
+    """Serve a screenshot/image file, restricted to Config.THUMBNAIL_DIR.
+
+    SECURITY: filenames are restricted to the basename (no path separators)
+    and resolved with realpath to prevent symlink escape. The previous
+    implementation's os.path.join('thumbnails', filename) fallback allowed
+    path traversal (e.g. /screenshot/../app.py to read app source).
+    """
+    from config import Config
+
     if not filename:
         return "Not found", 404
 
+    # Reject any path separators or '..' components.
+    if os.sep in filename or "/" in filename or ".." in filename.split(os.sep):
+        return "Not found", 404
+
+    # Only allow exact basename (defense in depth).
+    safe_name = os.path.basename(filename)
+    if safe_name != filename:
+        return "Not found", 404
+
+    # First, try next-to-source-video location.
     video_path = get_user_video_path(session['user_id'])
-    fp = validate_video_path(video_path, filename)
+    fp = validate_video_path(video_path, safe_name)
     if fp and os.path.exists(fp):
         return send_file(fp)
 
-    # Also check thumbnails directory
-    thumb_path = os.path.join('thumbnails', filename)
-    if os.path.exists(thumb_path):
-        return send_file(thumb_path)
+    # Fallback: serve from the configured thumbnail directory, but only if
+    # the resolved path is actually inside it (no symlink escape).
+    thumb_path = os.path.join(Config.THUMBNAIL_DIR, safe_name)
+    real_thumb_dir = os.path.realpath(Config.THUMBNAIL_DIR)
+    real_thumb_file = os.path.realpath(thumb_path)
+    if real_thumb_file.startswith(real_thumb_dir + os.sep) and os.path.exists(
+        real_thumb_file
+    ):
+        return send_file(real_thumb_file)
 
     return "Not found", 404
 
