@@ -1,0 +1,55 @@
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+    .nav-left .nav-link span,
+    .user-name { display: none; }
+    .nav-left { gap: 0.5rem; }
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    .filter-right {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .video-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem;
+    }
+    .player-layout {
+        grid-template-columns: 1fr !important;
+    }
+    .info-section {
+        order: 2;
+    }
+    .custom-controls .controls-row {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    .video-meta-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .recent-rail {
+        grid-auto-columns: 140px;
+    }
+}
+
+@media (max-width: 480px) {
+    .video-grid { grid-template-columns: 1fr !important; }
+    .pagination { flex-wrap: wrap; gap: 0.25rem; }
+    .pagination-btn { padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+}
+
+/* Touch device: hover preview needs long-press */
+@media (hover: none) {
+    .video-card .preview-container { display: none; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+    .ambient-blobs { display: none; }
+}
