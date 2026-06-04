@@ -49,7 +49,9 @@ init_db_pool()
 
 # Register blueprints
 from routes.auth import auth_bp
-from routes.videos import videos_bp
+from routes.index import index_bp
+from routes.player import player_bp
+from routes.api_videos import api_videos_bp
 from routes.tags import tags_bp
 from routes.collections import collections_bp
 from routes.share import share_bp
@@ -57,7 +59,9 @@ from routes.dashboard import dashboard_bp
 from routes.user import user_bp
 
 app.register_blueprint(auth_bp)
-app.register_blueprint(videos_bp)
+app.register_blueprint(index_bp)
+app.register_blueprint(player_bp)
+app.register_blueprint(api_videos_bp)
 app.register_blueprint(tags_bp)
 app.register_blueprint(collections_bp)
 app.register_blueprint(share_bp)

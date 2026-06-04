@@ -19,8 +19,8 @@ def client():
 
 def test_search_filters_results(client):
     """search=keyword should only return matching videos."""
-    with patch("routes.videos.sync_and_get_videos") as sync, \
-         patch("routes.videos.with_db_cursor") as cursor:
+    with patch("routes.api_videos.sync_and_get_videos") as sync, \
+         patch("routes.api_videos.with_db_cursor") as cursor:
         sync.return_value = [
             {"filename": "a.mp4", "title": "Action movie", "size": 100,
              "size_bytes": 100, "duration": 60, "duration_formatted": "1:00",
@@ -45,8 +45,8 @@ def test_search_filters_results(client):
 
 def test_sort_by_size_descending(client):
     """sort=size_bytes&order=desc returns largest first."""
-    with patch("routes.videos.sync_and_get_videos") as sync, \
-         patch("routes.videos.with_db_cursor") as cursor:
+    with patch("routes.api_videos.sync_and_get_videos") as sync, \
+         patch("routes.api_videos.with_db_cursor") as cursor:
         sync.return_value = [
             {"filename": "a.mp4", "title": "A", "size": 100, "size_bytes": 100,
              "file_size": 100,
@@ -72,8 +72,8 @@ def test_sort_by_size_descending(client):
 def test_page_beyond_filtered_total_returns_empty_with_correct_total(client):
     """When a search filter narrows results, page numbers must reflect the
     filtered count, not the pre-filter count."""
-    with patch("routes.videos.sync_and_get_videos") as sync, \
-         patch("routes.videos.with_db_cursor") as cursor:
+    with patch("routes.api_videos.sync_and_get_videos") as sync, \
+         patch("routes.api_videos.with_db_cursor") as cursor:
         sync.return_value = [
             {"filename": "a.mp4", "title": "Match this", "size": 100,
              "size_bytes": 100, "file_size": 100,
@@ -101,8 +101,8 @@ def test_page_beyond_filtered_total_returns_empty_with_correct_total(client):
 
 def test_invalid_sort_falls_back_to_filename(client):
     """Unknown sort key must not 500; falls back to 'filename'."""
-    with patch("routes.videos.sync_and_get_videos") as sync, \
-         patch("routes.videos.with_db_cursor") as cursor:
+    with patch("routes.api_videos.sync_and_get_videos") as sync, \
+         patch("routes.api_videos.with_db_cursor") as cursor:
         sync.return_value = []
         cursor.return_value.__enter__.return_value.fetchall.return_value = []
         res = client.get("/api/videos?sort=evil_injection")

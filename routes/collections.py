@@ -22,7 +22,7 @@ from services.video_service import video_dict_from_row
 from utils.logger import video_logger
 from utils.security import validate_video_path
 from routes.auth import login_required, admin_required
-from routes.videos import get_user_video_path
+from routes.player import get_user_video_path
 
 collections_bp = Blueprint('collections', __name__, url_prefix='/api/collections')
 
