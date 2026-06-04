@@ -1,0 +1,160 @@
+/* ==================== CSS Variables (Dark Theme - Default: Cinema Purple Dream) ==================== */
+:root {
+    /* 字体 */
+    --font-display: 'Outfit', system-ui, sans-serif;
+    --font-body: 'Nunito', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* 字号 */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+
+    /* 间距 */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+
+    /* 圆角 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    /* 动效时长 */
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
+    --duration-slower: 400ms;
+
+    /* 缓动函数 */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ===== Dark Theme: Cinema Purple Dream (Muted) ===== */
+    /* 背景色 - 更深的紫黑 + 微妙的渐变氛围 */
+    --bg-deep: #080710;
+    --bg-surface: #0F0D1A;
+    --bg-elevated: #14122A;
+    --bg-glass: rgba(20, 18, 45, 0.75);
+    --bg-glass-hover: rgba(30, 27, 65, 0.8);
+    --bg-muted: #1A1735;
+
+    /* 文字色 - 低饱和度淡紫白 */
+    --text-primary: #E8E6F5;
+    --text-secondary: #9994C8;
+    --text-muted: #5C5890;
+
+    /* 强调色 - 低饱和度霓虹梦幻调色板 */
+    --accent-pink: #D496B0;
+    --accent-lavender: #A78FC8;
+    --accent-purple: #9585D0;
+    --accent-cyan: #6EB8C8;
+    --accent-violet: #7E75C8;
+    --accent-magenta: #D4A0C8;
+
+    /* 渐变色 - 低饱和度 */
+    --gradient-pink-lavender: linear-gradient(135deg, #D496B0 0%, #A78FC8 100%);
+    --gradient-purple-cyan: linear-gradient(135deg, #9585D0 0%, #6EB8C8 100%);
+    --gradient-violet-pink: linear-gradient(135deg, #7E75C8 0%, #D496B0 100%);
+
+    /* 边框 - 更柔和 */
+    --border-primary: rgba(100, 90, 160, 0.2);
+    --border-secondary: rgba(120, 105, 165, 0.15);
+    --border-accent: rgba(212, 150, 176, 0.3);
+
+    /* 阴影与光晕 - 更柔和的紫色光晕 */
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.55);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.65);
+    --glow-pink: 0 0 25px rgba(212, 150, 176, 0.15);
+    --glow-purple: 0 0 25px rgba(167, 133, 208, 0.12);
+    --glow-cyan: 0 0 20px rgba(110, 184, 200, 0.1);
+
+    /* 特殊效果 */
+    --nav-bg: rgba(8, 7, 16, 0.92);
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --flow-light: rgba(167, 133, 208, 0.2);
+    --placeholder-start: #1F1C35;
+    --placeholder-mid: #2A2740;
+    --placeholder-end: #1F1C35;
+    --input-bg: rgba(100, 90, 160, 0.08);
+    --tag-add-btn-bg: rgba(100, 90, 160, 0.12);
+    --tag-add-btn-border: rgba(100, 90, 160, 0.22);
+    --speed-select-bg: rgba(255, 255, 255, 0.06);
+    --duration-badge-bg: rgba(8, 7, 16, 0.9);
+    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+}
+
+/* ==================== Light Theme: Dreamy Macaron (Muted) ==================== */
+:root[data-theme="light"] {
+    /* 背景色 - 更柔和的奶油粉白 */
+    --bg-deep: #FBF8FC;
+    --bg-surface: #FEFCFF;
+    --bg-elevated: #F8F4FB;
+    --bg-glass: rgba(255, 252, 255, 0.88);
+    --bg-glass-hover: rgba(255, 250, 255, 0.95);
+    --bg-muted: #F5F0F8;
+
+    /* 文字色 - 低饱和度深色，更清晰可读 */
+    --text-primary: #4A3348;
+    --text-secondary: #786878;
+    --text-muted: #A898A8;
+
+    /* 强调色 - 低饱和度马卡龙调色板 */
+    --accent-pink: #D98AB0;
+    --accent-lavender: #9B80C8;
+    --accent-purple: #8068C0;
+    --accent-cyan: #60B8D8;
+    --accent-violet: #7868C8;
+    --accent-magenta: #D8A0C0;
+
+    /* 渐变色 - 更柔和 */
+    --gradient-pink-lavender: linear-gradient(135deg, #D98AB0 0%, #9B80C8 100%);
+    --gradient-purple-cyan: linear-gradient(135deg, #9B80C8 0%, #60B8D8 100%);
+    --gradient-violet-pink: linear-gradient(135deg, #7868C8 0%, #D98AB0 100%);
+
+    /* 边框 */
+    --border-primary: rgba(200, 140, 180, 0.3);
+    --border-secondary: rgba(185, 145, 195, 0.25);
+    --border-accent: rgba(217, 138, 176, 0.4);
+
+    /* 阴影 */
+    --shadow-color: rgba(90, 60, 80, 0.06);
+    --shadow-sm: 0 1px 2px rgba(90, 60, 80, 0.04);
+    --shadow-md: 0 4px 6px rgba(90, 60, 80, 0.06);
+    --shadow-lg: 0 10px 15px rgba(90, 60, 80, 0.08);
+    --shadow-xl: 0 20px 25px rgba(90, 60, 80, 0.1);
+    --glow-pink: 0 0 20px rgba(217, 138, 176, 0.15);
+    --glow-purple: 0 0 20px rgba(155, 128, 200, 0.12);
+    --glow-cyan: 0 0 15px rgba(96, 184, 216, 0.1);
+
+    /* 特殊效果 */
+    --nav-bg: rgba(255, 252, 255, 0.92);
+    --card-shadow: 0 8px 32px rgba(90, 60, 80, 0.08);
+    --flow-light: rgba(185, 145, 195, 0.35);
+    --placeholder-start: #EDE4F0;
+    --placeholder-mid: #E5DAEA;
+    --placeholder-end: #EDE4F0;
+    --input-bg: rgba(155, 128, 200, 0.08);
+    --tag-add-btn-bg: rgba(155, 128, 200, 0.12);
+    --tag-add-btn-border: rgba(155, 128, 200, 0.28);
+    --speed-select-bg: rgba(255, 255, 255, 0.12);
+    --duration-badge-bg: rgba(255, 252, 255, 0.95);
+    --control-bg: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+}

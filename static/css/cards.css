@@ -1,0 +1,628 @@
+/* ==================== Cards & Grid ==================== */
+
+/* ==================== Homepage ==================== */
+.home-page {
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.filter-left {
+    flex: 1;
+    min-width: 280px;
+    max-width: 420px;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+    pointer-events: none;
+    transition: color 0.3s ease;
+}
+
+.search-input {
+    width: 100%;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s var(--ease-out);
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-input:focus {
+    border-color: var(--accent-lavender);
+    box-shadow: 0 0 0 3px var(--tag-add-btn-bg);
+}
+
+.search-input:focus + .search-icon,
+.search-box:has(.search-input:focus) .search-icon {
+    color: var(--accent-lavender);
+}
+
+.filter-select {
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    transition: all 0.3s ease;
+}
+
+:root[data-theme="light"] .filter-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23333' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+}
+
+.filter-select:focus {
+    border-color: var(--accent-lavender);
+}
+
+.filter-select option {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+/* ==================== Filter Right ==================== */
+.filter-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* ==================== Bento Grid ==================== */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+/* ==================== Video Card ==================== */
+.video-card {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s var(--ease-out);
+    will-change: transform;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    position: relative;
+}
+
+.video-card.filtered-out {
+    display: none;
+}
+
+.video-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: var(--shadow-xl), var(--glow-purple);
+    border-color: var(--border-accent);
+}
+
+.video-card:active {
+    transform: translateY(-3px) scale(1.005);
+    transition-duration: 0.1s;
+}
+
+/* Scale feedback on press */
+.video-card {
+    cursor: pointer;
+}
+
+.video-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-out);
+    background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), var(--glow-purple) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.video-card:hover::before {
+    opacity: 0.5;
+}
+
+.card-media {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.thumbnail-container {
+    position: absolute;
+    inset: 0;
+}
+
+.thumbnail-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+}
+
+.thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.placeholder-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--placeholder-start) 0%, var(--placeholder-mid) 50%, var(--placeholder-end) 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.play-icon {
+    position: relative;
+    z-index: 1;
+    width: 48px;
+    height: 48px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Preview container — video created on hover, destroyed on leave */
+.preview-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.preview-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.video-card.previewing .preview-video {
+    opacity: 1;
+}
+
+.video-card.previewing .thumbnail-img,
+.video-card.previewing .thumbnail-placeholder {
+    opacity: 0;
+}
+
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.flow-light {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, var(--flow-light) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    transform: translate(-50%, -50%);
+}
+
+.video-card:hover .flow-light {
+    opacity: 1;
+}
+
+.duration-badge {
+    position: absolute;
+    bottom: 0.75rem;
+    right: 0.75rem;
+    background: var(--duration-badge-bg);
+    backdrop-filter: blur(8px);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: background 0.3s ease;
+}
+
+.card-info {
+    padding: 1rem;
+}
+
+.card-title {
+    font-size: 1rem;
+    font-weight: 400;
+    margin-bottom: 0.25rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-title:hover {
+    color: var(--accent-lavender);
+}
+
+.card-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    transition: color 0.3s ease;
+}
+
+.card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.info-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: var(--tag-add-btn-bg);
+    color: var(--accent-lavender);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ==================== Tags (on card) ==================== */
+.card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    cursor: pointer;
+    min-height: 32px;
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid;
+    transition: all 0.2s var(--ease-out);
+    animation: tagPop 0.3s var(--ease-spring);
+}
+
+@keyframes tagPop {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.tag-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.2s var(--ease-out);
+}
+
+.tag-delete:hover {
+    opacity: 1;
+}
+
+.tag-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--tag-add-btn-bg);
+    border: 1px dashed var(--tag-add-btn-border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+}
+
+.tag-add-btn:hover {
+    background: var(--accent-lavender);
+    border-color: var(--accent-lavender);
+    color: white;
+    transform: scale(1.1);
+}
+
+.tag-add-btn:active {
+    transform: scale(0.95);
+}
+
+/* ==================== Tag Editor (inline on card) ==================== */
+.tag-editor {
+    margin-top: 0.75rem;
+    animation: slideDown 0.3s var(--ease-out);
+}
+
+@keyframes slideDown {
+    0% { opacity: 0; transform: translateY(-10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.tag-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s var(--ease-out);
+}
+
+.tag-input:focus {
+    border-color: var(--accent-lavender);
+    box-shadow: 0 0 0 3px rgba(155, 128, 200, 0.15);
+}
+
+/* ==================== Favorite Badge on Card ==================== */
+.favorite-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 6px;
+    color: #EF4444;
+    backdrop-filter: blur(4px);
+}
+
+/* ==================== Rating Badge ==================== */
+.rating-badge {
+    color: #F59E0B !important;
+}
+
+/* ==================== Progress Bar on Cards ==================== */
+.progress-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent-lavender);
+    border-radius: 0 2px 0 0;
+    transition: width 0.3s ease;
+}
+
+/* ==================== View Mode Toggle ==================== */
+.view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 0.2rem;
+}
+
+.view-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+    color: var(--accent-lavender);
+}
+
+.view-toggle-btn.active {
+    background: var(--accent-lavender);
+    color: #fff;
+}
+
+/* ==================== List View ==================== */
+.video-grid.list-view {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+.video-grid.list-view .video-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.video-grid.list-view .card-media {
+    width: 200px;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+}
+
+.video-grid.list-view .card-info {
+    flex: 1;
+    padding: 0.75rem 1rem;
+}
+
+.video-grid.list-view .card-tags {
+    min-height: auto;
+}
+
+.video-grid.list-view .card-title {
+    font-size: 0.95rem;
+}
+
+/* ==================== Per Page Selector ==================== */
+.per-page-select {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+}
+
+/* ==================== Pagination ==================== */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding: 1rem 0;
+}
+
+.pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--accent-lavender);
+    color: var(--accent-lavender);
+    background: var(--tag-add-btn-bg);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-btn.active {
+    background: var(--gradient-pink-lavender);
+    border-color: var(--accent-lavender);
+    color: #fff;
+    box-shadow: var(--glow-purple);
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0 0.5rem;
+}
+
+/* ==================== Mobile Responsive (cards) ==================== */
+@media (max-width: 768px) {
+    .home-page {
+        padding: 1rem;
+    }
+
+    .video-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .video-card {
+        border-radius: 12px;
+    }
+
+    .video-card:hover {
+        transform: translateY(-2px) scale(1.005);
+    }
+
+    .video-grid.list-view .card-media {
+        width: 140px;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-left {
+        max-width: none;
+    }
+
+    .filter-right {
+        justify-content: center;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Prevent double-tap zoom */
+    .video-card,
+    .pagination-btn {
+        touch-action: manipulation;
+    }
+}
+
+@media (max-width: 480px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+}
